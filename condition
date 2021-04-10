@@ -1,0 +1,1 @@
+TCP -d 151.232.1.134/32 --bps-th 70Mb --dport 53 --filter src_ip:1,dst_port:1
