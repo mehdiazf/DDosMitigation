@@ -12,11 +12,15 @@
 #include <boost/asio.hpp>
 
 #include "afsniff.hpp"
-#include "ip.hpp"
 #include "anomaly.hpp"
 #include "functions.hpp"
 #include "lib/queue.hpp"
+#include "ip.hpp"
+#include "iptable.hpp"
 
+
+#include<ctime>
+#include<cstdlib>
 
 void watcher(std::vector<std::shared_ptr<Anomaly>> & threads_collect,
         std::shared_ptr<Anomaly> anomly, std::shared_ptr<ts_queue<token>> task){
@@ -44,17 +48,37 @@ void watcher(std::vector<std::shared_ptr<Anomaly>> & threads_collect,
     }
     
 }
-void task_runner(std::shared_ptr<ts_queue<token>> task, uint8_t proto, uint32_t dst_addr){
-                 
+void task_runner(std::shared_ptr<ts_queue<token>> task, uint8_t proto, uint32_t dst_addr, std::shared_ptr<Iptable>& ipt){
+
+    std::vector<std::string> rule_list;
+    std::string str;
     for(;;)
     {
         boost::this_thread::interruption_point();
         token tmp;
+
+
         if(task->wait_and_pop(tmp, 1000))
-            std::cout<<tmp.type<<":"<<std::to_string(tmp.val)<<std::endl;
-            
-    }
+	{
+		str = tmp.type + " " + std::to_string(tmp.val);
+            	std::cout<<str<<std::endl;
+		try
+		{
+			if(std::find( rule_list.begin(), rule_list.end(), str) == rule_list.end())
+			{
+				ipt->add_rule(tmp);
+				rule_list.push_back(str);
+			}
+		}catch(...)
+		{
+			continue;
+
+		}
     
+	}
+
+   }
+
 }
 
 int main(int argc, char ** argv){
@@ -73,6 +97,7 @@ int main(int argc, char ** argv){
     else
     {
         std::cerr<<"Couldn't open file "<<argv[1]<<std::endl;
+	return 1;
     }
     
     std::vector<std::string> input_p = space_tokenize(line);
@@ -97,6 +122,9 @@ int main(int argc, char ** argv){
         }
     std::shared_ptr<IpRule> rule;
     boost::thread_group threads;
+    boost::asio::io_service io_srv;
+    boost::asio::signal_set signals(io_srv, SIGINT,SIGTERM);
+    signals.async_wait(boost::bind(&boost::asio::io_service::stop, &io_srv));
     uint8_t proto_;
     try{
         if(_proto == "TCP"){
@@ -133,6 +161,8 @@ int main(int argc, char ** argv){
         return 1;
     }
     std::string interface="ens160";   ///////////////////////should change in the future
+    std::srand(std::time(nullptr));
+    std::shared_ptr<Iptable> iptable_ = std::make_shared<Iptable>(interface, std::to_string(std::rand()%10000),proto_, input_p );
     AF_packet af_rcv(interface, threads, threads_anomly, *anomly, proto_);
     try{
         af_rcv.start();
@@ -142,15 +172,16 @@ int main(int argc, char ** argv){
         return 1;        
     }
     
-    threads.add_thread(new boost::thread(watcher, std::ref(threads_anomly), anomly, task_list));
-    threads.add_thread(new boost::thread(task_runner, task_list, proto_, rule->dst_addr));
-    
-    //threads.interrupt_all(); 
+    threads.add_thread(new boost::thread(watcher, boost::ref(threads_anomly), anomly, task_list));
+    threads.add_thread(new boost::thread(task_runner, task_list, proto_, rule->dst_addr, std::ref(iptable_)));
+
+
+    //signals.async_wait([&threads,&io_srv](const boost::system::error_code& e
+    //			    , int sn){threads.interrupt_all();io_srv.stop();});
+    io_srv.run_one();
+    threads.interrupt_all(); 
     threads.join_all();    
 
     //unlink(argv[1]);
     f.close();
-    
-    
    }
-   

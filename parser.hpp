@@ -127,6 +127,7 @@ namespace parser
         }
         return std::make_pair/*<T, unsigned short int>*/((T)num, get_index<char>(comp_t, value.at(0)));
     }
+    std::pair<uint8_t, uint8_t> icmp_range(std::string str);
     /*
      Converting a string of the form: f1: 0, f2: 1, f3: 1, fn: [0,1] into pair <bits, mask>,
      Where bits is the bitset of the state of the flags, i.e. 0 and 1 from example fn: [0,1]

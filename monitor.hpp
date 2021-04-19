@@ -33,8 +33,9 @@ class Counter
 class token{
     
 public:
-    token():token(0,  ""){}    
-    token(uint32_t x, std::string y):val(x),type(y){}    
+    token():token(0, ""){}    
+    token(uint32_t x, std::string y):val(x), type(y){}    
+    token(const token& oth):val(oth.val), type(oth.type){}
     uint32_t val;    
     std::string type;
                     

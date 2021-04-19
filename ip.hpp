@@ -12,8 +12,7 @@
 #include <boost/program_options.hpp>
 #include <boost/asio/ip/address_v4.hpp>
 
-#include "parser.hpp"
-
+class Iptable;
 namespace tcprule
 {
     // Textual representation of TCP flags in the correct order, for
@@ -48,7 +47,8 @@ class NumRange{
         bool in_this(T num) const;
         bool stat() const;
         std::string to_string() const;
-    
+
+	friend class Iptable;    
     private:
         T start_;
         T end_;
@@ -64,7 +64,8 @@ class NumComparable{
         bool in_this(T num) const;
         bool stat() const;
         std::string to_string() const;
-        
+
+	//friend class Iptable;        
     private:
         T num_;
         unsigned short int type_;

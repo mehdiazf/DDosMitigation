@@ -4,11 +4,11 @@ PROGS = filter
 CLEANFILES = $(PROGS) *.o
 RM = rm -rf
 
-LDFLAGS = -L /usr/local/lib -lboost_system -pthread  -lboost_thread  -lboost_program_options -lboost_chrono
+LDFLAGS = -L /usr/local/lib -lboost_system -pthread  -lboost_thread  -lboost_program_options -lboost_chrono -lip4tc -ldl 
 CPPFLAGS = -std=c++17 -Wall
 
 all: $(PROGS)
-filter: anomaly.o ip.o parser.o functions.o afsniff.o exceptions.o monitor.o main.o
+filter: anomaly.o ip.o parser.o functions.o afsniff.o exceptions.o monitor.o iptable.o main.o 
 	$(CXX) $(CPPFLAGS) $^ -o $@ $(LDFLAGS)
 
 exceptions.o: exceptions.cpp
@@ -32,8 +32,11 @@ afsniff.o: afsniff.cpp
 monitor.o: monitor.cpp
 	$(CXX) $(CPPFLAGS) -c monitor.cpp -o monitor.o $(LDFLAGS)
 
+iptable.o: iptable.cpp
+	$(CXX) $(CPPFLAGS) -c iptable.cpp -o iptable.o $(LDFLAGS) -fpermissive
+
 main.o: main.cpp
-	$(CXX) $(CPPFLAGS) -c main.cpp -o main.o $(LDFLAGS)
+	$(CXX) $(CPPFLAGS) -c main.cpp -o main.o $(LDFLAGS) -fpermissive
 
 clean:
 	$(RM) $(CLEANFILES)

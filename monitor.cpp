@@ -110,7 +110,8 @@ std::string Filter<T>::get_info(uint32_t val){
     return " ";
             
 }
-template <typename T>
+///push anomaly randomly to avoid queue exhuastion
+template <typename T>	
 void Filter<T>::check_triggers(uint32_t _pps, uint32_t _bps, std::shared_ptr<ts_queue<token>> & l){
            
     auto _now = std::chrono::high_resolution_clock::now();

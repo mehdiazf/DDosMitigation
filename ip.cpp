@@ -1,5 +1,5 @@
 #include "ip.hpp"
-
+#include "parser.hpp"
 
 //class tcpflag
 tcp_flags::tcp_flags()
@@ -111,7 +111,8 @@ void IpRule::ip_rule_parse(const boost::program_options::variables_map& vm){
     }
     if (vm.count("dstip")) {
 	std::pair<uint32_t,uint32_t> tmp = parser::range_from_ip_string(vm["dstip"].as<std::string>());
-        dst_addr = boost::asio::ip::make_address_v4(tmp.first).to_ulong();
+        dst_addr = tmp.first; // boost::asio::ip::make_address_v4(tmp.first).to_ulong();
+//	std::cout<<tmp.first<<" "<<dst_addr<<std::endl;
     }
     
     if (vm.count("pps-th")) {
@@ -384,16 +385,8 @@ bool Icmp::check_packet(const void * hdr,
 
 
 }
-
-
-
-
-
-
-
-
-
-
-
+template class NumRange<uint16_t>;
+template class NumRange<uint32_t>;
+template class NumRange<uint8_t>;
 
 

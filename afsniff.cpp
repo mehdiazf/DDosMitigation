@@ -101,13 +101,13 @@ void AF_packet::packet_thread(int fd, int thread_id, std::shared_ptr<Anomaly> an
     size_t read_len;
     unsigned char buff[MAX_BUFF];
     try
-    {        
+    { 
         if(!_enable_ring)
         {
             
             while(true)
             {
-                //boost::this_thread::interruption_point();
+                boost::this_thread::interruption_point();
                 read_len = recv(fd, buff, MAX_BUFF, MSG_TRUNC);
                 if (read_len < 0)
                 {
@@ -130,6 +130,7 @@ void AF_packet::packet_thread(int fd, int thread_id, std::shared_ptr<Anomaly> an
             pfd.events = POLLIN | POLLERR;
             pfd.revents = 0;            
             while(true){
+		   boost::this_thread::interruption_point();       
                    epbd = (struct block_desc *) rd_->operator[](nb)->iov_base;                   
                     if((epbd->h1.block_status & TP_STATUS_USER) == 0){
                             poll(&pfd, 1, -1);
@@ -148,7 +149,7 @@ void AF_packet::packet_thread(int fd, int thread_id, std::shared_ptr<Anomaly> an
     catch(...)
     {
         close(fd);
-        throw AfpacketException("thread " + std::to_string(thread_id) + " closed.");
+        //throw AfpacketException("thread " + std::to_string(thread_id) + " closed.");
     }
 }
 int AF_packet::get_iface_index(int fd, std::string if_name){

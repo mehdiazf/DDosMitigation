@@ -1,1 +1,0 @@
-TCP -d 151.232.1.134/32 --bps-th 20b --tcp-flag A:1 --dport 46  --filter src_ip:1
