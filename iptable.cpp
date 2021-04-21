@@ -118,8 +118,7 @@ void Iptable::add_options(std::vector<std::string> & in){
 		dst_addr = htonl(tmp.first);	
 	}
 	if (vm.count("srcip")) {
-		std::pair<uint32_t, uint32_t> tmp = parser::range_from_ip_string(vm["srcip"].as<std::string>());
-		src_addr = std::make_pair<uint32_t, uint32_t>(htonl(tmp.first), htonl(tmp.second));
+		src_addr = parser::range_from_ip_string(vm["srcip"].as<std::string>());
 	}
 	if (vm.count("dport")) {
 		dport = parser::range_from_port_string(vm["dport"].as<std::string>());
@@ -231,10 +230,10 @@ void Iptable::clean_l3()
 {
         en->nfcache &= (~NFC_IP_SRC_PT | ~NFC_IP_DST_PT);
         rl.en.nfcache &= (~NFC_IP_SRC_PT | ~NFC_IP_DST_PT);		
-	if(src_addr.stat()){		
-                en->ip.src.s_addr = rl.en.ip.src.s_addr = src_addr.start_;
-		uint32_t dif = src_addr.end_ - src_addr.start_ + 1 ;
-                en->ip.smsk.s_addr = rl.en.ip.smsk.s_addr =  static_cast<unsigned int>(pow(2, 32 - ( log(dif)/log(2) )) );
+	if(src_addr.stat()){	
+                en->ip.src.s_addr = rl.en.ip.src.s_addr = htonl(src_addr.start_);
+		uint32_t dif = src_addr.end_ - src_addr.start_ ;
+                en->ip.smsk.s_addr = rl.en.ip.smsk.s_addr =  static_cast<unsigned int>(pow(2, 32 - ceil(log(dif)/log(2))) - 1 );
 	}else{
 		en->ip.src.s_addr = rl.en.ip.src.s_addr = 0;
                 en->ip.smsk.s_addr = rl.en.ip.smsk.s_addr = 0x0;
@@ -261,7 +260,6 @@ void Iptable::clean_tcp(struct ipt_tcp * tcp_){
 	}
 	if(tcp_flgs.first.to_string() != "000000"){
 		auto reverse = [](uint16_t x){uint16_t r=0,n=6; while(n>0){r<<=1; if(x&1)r^=1; x>>=1;n--;} return r; };
-		std::cout<<tcp_flgs.second.to_ulong()<<" "<< reverse(tcp_flgs.second.to_ulong())<<std::endl;
 		tcp_->flg_mask = reverse(tcp_flgs.second.to_ulong());
 		tcp_->flg_cmp =  reverse(tcp_flgs.first.to_ulong());
 	}else{		
@@ -359,7 +357,7 @@ bool Iptable::set_icmp_field(token& t, struct ipt_icmp * icmp_){
 	clean_icmp(icmp_);
 
 	if(t.type == "dst_ip"){
-		if(icmp_type>=0){
+		if(static_cast<int>(icmp_type)>=0){
                 	en->nfcache |= NFC_IP_DST_PT;
 			return append_match();			
         	}else{
@@ -368,7 +366,7 @@ bool Iptable::set_icmp_field(token& t, struct ipt_icmp * icmp_){
 		}
 	}
         else if(t.type == "src_ip"){
-		if(icmp_type>=0){
+		if(static_cast<int>(icmp_type)>=0){
                 	en->ip.src.s_addr = htonl(t.val);
                 	en->ip.smsk.s_addr = 0xFFFFFFFF;
                 	en->nfcache |= NFC_IP_SRC_PT;

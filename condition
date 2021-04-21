@@ -1,1 +1,1 @@
-TCP -d 151.232.1.134/32 --bps-th 70Mb --dport 53 --filter src_ip:1,dst_port:1
+TCP -d 151.232.1.134/32 -s 5.5.0.0/8  --bps-th 70Mb --dport 53 --filter src_ip:1,dst_port:1
