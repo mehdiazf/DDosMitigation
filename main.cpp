@@ -17,6 +17,7 @@
 #include "lib/queue.hpp"
 #include "ip.hpp"
 #include "iptable.hpp"
+#include "sqlite.hpp"
 
 
 #include<ctime>
@@ -48,24 +49,35 @@ void watcher(std::vector<std::shared_ptr<Anomaly>> & threads_collect,
     }
     
 }
-void task_runner(std::shared_ptr<ts_queue<token>> task, uint8_t proto, uint32_t dst_addr, std::shared_ptr<Iptable>& ipt){
+void task_runner(std::shared_ptr<ts_queue<token>> task,int id, uint8_t proto, uint32_t dst_addr, std::shared_ptr<Iptable>& ipt){
 
     std::vector<std::string> rule_list;
-    std::string str;
+    std::string str, data;
+    using namespace Sqlite;
+    SQLite sq("Taro");
+    sq.insert_record("Hi this is test!","10","10:20","Now");
+   
+    SQLite df("Taro_Filter");
     for(;;)
     {
         boost::this_thread::interruption_point();
         token tmp;
 
-
         if(task->wait_and_pop(tmp, 1000))
 	{
 		str = tmp.type + " " + std::to_string(tmp.val);
             	std::cout<<str<<std::endl;
+
 		try
 		{
 			if(std::find( rule_list.begin(), rule_list.end(), str) == rule_list.end())
-			{
+			{       
+				if(tmp.type.find("ip") != std::string::npos)
+					data = tmp.type + " " + boost::asio::ip::make_address_v4(tmp.val).to_string();
+				else
+					data = str;
+
+				df.insert_record(id,data);
 				ipt->add_rule(tmp);
 				rule_list.push_back(str);
 			}
@@ -162,7 +174,8 @@ int main(int argc, char ** argv){
     }
     std::string interface="ens160";   ///////////////////////should change in the future
     std::srand(std::time(nullptr));
-    std::shared_ptr<Iptable> iptable_ = std::make_shared<Iptable>(interface, std::to_string(std::rand()%10000),proto_, input_p );
+    int id = 1;// std::rand()%10000;
+    std::shared_ptr<Iptable> iptable_ = std::make_shared<Iptable>(interface, std::to_string(id),proto_, input_p );
     AF_packet af_rcv(interface, threads, threads_anomly, *anomly, proto_);
     try{
         af_rcv.start();
@@ -173,7 +186,7 @@ int main(int argc, char ** argv){
     }
     
     threads.add_thread(new boost::thread(watcher, boost::ref(threads_anomly), anomly, task_list));
-    threads.add_thread(new boost::thread(task_runner, task_list, proto_, rule->dst_addr, std::ref(iptable_)));
+    threads.add_thread(new boost::thread(task_runner, task_list,id, proto_, rule->dst_addr, std::ref(iptable_)));
 
 
     //signals.async_wait([&threads,&io_srv](const boost::system::error_code& e

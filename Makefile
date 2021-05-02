@@ -4,11 +4,11 @@ PROGS = filter
 CLEANFILES = $(PROGS) *.o
 RM = rm -rf
 
-LDFLAGS = -L /usr/local/lib -lboost_system -pthread  -lboost_thread  -lboost_program_options -lboost_chrono -lip4tc -ldl 
+LDFLAGS = -L /usr/local/lib -lboost_system -pthread  -lboost_thread  -lboost_program_options -lboost_chrono -lip4tc -ldl -lsqlite3
 CPPFLAGS = -std=c++17 -Wall
 
 all: $(PROGS)
-filter: anomaly.o ip.o parser.o functions.o afsniff.o exceptions.o monitor.o iptable.o main.o 
+filter: anomaly.o ip.o parser.o functions.o afsniff.o exceptions.o monitor.o iptable.o sqlite.o main.o 
 	$(CXX) $(CPPFLAGS) $^ -o $@ $(LDFLAGS)
 
 exceptions.o: exceptions.cpp
@@ -34,6 +34,9 @@ monitor.o: monitor.cpp
 
 iptable.o: iptable.cpp
 	$(CXX) $(CPPFLAGS) -c iptable.cpp -o iptable.o $(LDFLAGS) -fpermissive
+
+sqlite.o: sqlite.cpp
+	$(CXX) $(CPPFLAGS) -c sqlite.cpp -o sqlite.o $(LDFLAGS)
 
 main.o: main.cpp
 	$(CXX) $(CPPFLAGS) -c main.cpp -o main.o $(LDFLAGS) -fpermissive
