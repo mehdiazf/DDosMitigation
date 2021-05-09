@@ -7,6 +7,12 @@
 #include <sstream>
 #include <algorithm>
 
+#include<sys/types.h>
+#include<sys/stat.h>
+#include<fcntl.h>
+#include<signal.h>
+#include<ext/stdio_filebuf.h>
+
 #include <boost/thread.hpp>
 #include <boost/program_options.hpp>
 #include <boost/asio.hpp>
@@ -14,14 +20,17 @@
 #include "afsniff.hpp"
 #include "anomaly.hpp"
 #include "functions.hpp"
-#include "lib/queue.hpp"
+#include "../lib/queue.hpp"
 #include "ip.hpp"
 #include "iptable.hpp"
 #include "sqlite.hpp"
-
+#include "client.hpp"
 
 #include<ctime>
 #include<cstdlib>
+
+#define END_PHRASE "FINISH"
+bool Sqlite::SQLite::conf =0;
 
 void watcher(std::vector<std::shared_ptr<Anomaly>> & threads_collect,
         std::shared_ptr<Anomaly> anomly, std::shared_ptr<ts_queue<token>> task){
@@ -49,22 +58,48 @@ void watcher(std::vector<std::shared_ptr<Anomaly>> & threads_collect,
     }
     
 }
-void task_runner(std::shared_ptr<ts_queue<token>> task,int id, uint8_t proto, uint32_t dst_addr, std::shared_ptr<Iptable>& ipt){
+bool end_process(std::shared_ptr<Client>& _client, int id, int byte, int packet){
+
+	if(!_client->connect())
+		return false;
+	std::string data = std::string(END_PHRASE) + " " + std::to_string(id) + 
+		" " + std::to_string(byte) + " " + std::to_string(packet) + "\n";
+	if(!_client->send(data))
+		return false;
+	if(_client->read("\n") == "OK!\n"){
+		_client->close();
+		return true;
+	}
+	return false;
+}
+void task_runner(std::shared_ptr<ts_queue<token>> task, int id, int timeout,
+	       	uint8_t proto, uint32_t dst_addr, std::shared_ptr<Iptable>& ipt, std::shared_ptr<Client>& _client){
+
+    std::chrono::high_resolution_clock::time_point _last = std::chrono::high_resolution_clock::now();
+    std::chrono::high_resolution_clock::time_point _now;
 
     std::vector<std::string> rule_list;
     std::string str, data;
     using namespace Sqlite;
-    SQLite sq("Taro");
-    sq.insert_record("Hi this is test!","10","10:20","Now");
    
     SQLite df("Taro_Filter");
     for(;;)
     {
         boost::this_thread::interruption_point();
         token tmp;
+	
+	_now = std::chrono::high_resolution_clock::now();
+	auto xx = std::chrono::duration<double>(_now - _last).count(); 
+	std::cout<<xx<<std::endl;
+	if( xx > timeout){
+		struct ipt_counters x = ipt->get_counters();
+		if(end_process(_client, id, x.bcnt, x.pcnt))
+			kill(getpid(), SIGTERM);
+	}
 
         if(task->wait_and_pop(tmp, 1000))
 	{
+		_last = _now;
 		str = tmp.type + " " + std::to_string(tmp.val);
             	std::cout<<str<<std::endl;
 
@@ -99,23 +134,38 @@ int main(int argc, char ** argv){
         std::cerr<<"Invalid argument."<<std::endl;
         return 1;
     }
-    
-    std::ifstream f(argv[1], std::ifstream::in);
+
+   __gnu_cxx::stdio_filebuf<char> f(std::atoi(argv[1]), std::ios::in);
+    std::istream is(&f);
     std::string line;
-    
-    if(f.is_open()){    
-    std::getline(f, line);
-    }
-    else
-    {
-        std::cerr<<"Couldn't open file "<<argv[1]<<std::endl;
-	return 1;
-    }
+    std::getline(is, line);
     
     std::vector<std::string> input_p = space_tokenize(line);
-    if(input_p.size()==0)
+    if(input_p.size()==0){
         std::cerr<<"Couldn't parse input."<<std::endl;
-    
+	return 1;
+    }
+    close(std::atoi(argv[1]));
+
+   using namespace Sqlite;
+   SQLite sq("Taro_Config");
+   auto [bgpid, interface, timeout, bgppass, enable_pass, bgp_ip, bgp_port ] = sq.get_config();
+
+    std::shared_ptr<Client> _client = std::make_shared<Client>("127.0.0.1", 9200);
+
+
+    int id;//, timeout = 5;
+    if(input_p[0] == "ID"){
+	    id = std::atoi(input_p[1].c_str());
+    }
+    else
+	throw std::invalid_argument("Invalid ID: " + input_p[1]);
+
+    std::vector<std::string>::iterator b,e;
+    b = input_p.begin();
+    e = b; e++; e++;
+    input_p.erase(b, e);
+
     std::string _proto = input_p[0];
     input_p.erase(input_p.begin());
     if(_proto != "ICMP" && _proto != "TCP" && _proto != "UDP" ){       
@@ -172,9 +222,9 @@ int main(int argc, char ** argv){
         std::cerr<<e.what()<<std::endl;
         return 1;
     }
-    std::string interface="ens160";   ///////////////////////should change in the future
+    //std::string interface="ens160";   ///////////////////////should change in the future
     std::srand(std::time(nullptr));
-    int id = 1;// std::rand()%10000;
+   // int id = 1;// std::rand()%10000;
     std::shared_ptr<Iptable> iptable_ = std::make_shared<Iptable>(interface, std::to_string(id),proto_, input_p );
     AF_packet af_rcv(interface, threads, threads_anomly, *anomly, proto_);
     try{
@@ -186,7 +236,7 @@ int main(int argc, char ** argv){
     }
     
     threads.add_thread(new boost::thread(watcher, boost::ref(threads_anomly), anomly, task_list));
-    threads.add_thread(new boost::thread(task_runner, task_list,id, proto_, rule->dst_addr, std::ref(iptable_)));
+    threads.add_thread(new boost::thread(task_runner, task_list, id, timeout, proto_, rule->dst_addr, std::ref(iptable_), std::ref(_client)));
 
 
     //signals.async_wait([&threads,&io_srv](const boost::system::error_code& e

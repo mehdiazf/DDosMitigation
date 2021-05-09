@@ -26,6 +26,7 @@ class Iptable{
 public:
     Iptable(std::string inface, std::string id_, unsigned int pro, std::vector<std::string>& input );
     bool  add_rule(token &t);
+    ipt_counters get_counters();
     ~Iptable();
 
 private:

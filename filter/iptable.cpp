@@ -181,6 +181,23 @@ bool Iptable::set_chain_rule(){
 	iptc_free(h);
 	return x;
 }
+ipt_counters Iptable::get_counters(){
+
+	const char * tt = table.c_str();
+        h = iptc_init(tt);
+	const std::string pre("PREROUTING");
+	const struct ipt_entry *e;
+	int i;
+	
+	for(e = iptc_first_rule(pre.c_str(), h), i =0; e; e = iptc_next_rule(e, h), i++ ){
+		if(chn_name == static_cast<std::string>(iptc_get_target(e, h)))
+			break;
+	}
+	
+	struct ipt_counters res{e->counters.bcnt, e->counters.pcnt};
+	iptc_free(h);
+	return res;
+}
 bool Iptable::return_rule(){
 	int c=1;
 	

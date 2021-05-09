@@ -14,7 +14,7 @@
 #include <boost/chrono.hpp>
 #include <boost/asio/ip/address_v4.hpp>
 
-#include "lib/queue.hpp"
+#include "../lib/queue.hpp"
 #define MAX 1000000
 
 class Counter

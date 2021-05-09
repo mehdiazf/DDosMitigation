@@ -26,6 +26,22 @@ SQLite::SQLite(std::string tb):db("Tarodb.db"), tb_name(tb){
 	"   filter text,"
 	"   foreign key(id) references Taro(id)"//on update action on delete action"
 	");";
+
+}
+bool SQLite::create_conf_table(){
+
+	db <<
+	"create table if not exists Taro_Config ("
+	"   id integer primary key autoincrement not null unique,"
+	"   bgpid int not null,"
+	"   interface text,"
+	"   timeout  int,"
+	"   bgppass text,"
+	"   enablepass text,"
+	"   bgpdip text,"
+	"   bgpdport int"
+	");";
+	return true;
 }
 unsigned int SQLite::get_last_id(){
 
@@ -141,6 +157,49 @@ bool SQLite::status(std::string rule, std::string stat){
 		}
 	}
 	return false;
+}
+bool SQLite::set_config(int bgpid, std::string iface, int tout,std::string bpass,
+		std::string enpass, std::string bip, int port){
+
+	if(!conf){
+		db<<query[static_cast<int>(DB_Manual::DEL_CONFIG)];
+		create_conf_table();
+		db<<query[static_cast<int>(DB_Manual::SET_CONFIG)]
+			<< 0 ;
+		conf = 1;
+	}
+	std::string q = query[static_cast<int>(DB_Manual::UP_CONFIG)];
+	q+= "bgpid = %d, interface = '%s', timeout = %d, bgppass = '%s', enablepass = '%s', bgpdip = '%s', bgpdport = %d where id == 1;";
+			
+	auto size = std::snprintf(nullptr, 0, q.c_str(), bgpid, iface.c_str(), tout, 
+			bpass.c_str(), enpass.c_str(), bip.c_str(), port);
+	std::string buf(size + 1 ,'\0');
+	std::sprintf(&buf[0], q.c_str(), bgpid, iface.c_str(), tout, 
+			bpass.c_str(), enpass.c_str(), bip.c_str(), port);
+
+	try{
+		db << buf.c_str();
+	}catch(std::exception &e){
+		std::cerr<<e.what()<<std::endl;
+		return false;
+	}
+
+	return true;
+
+}
+std::tuple<int, std::string, int, std::string, std::string, std::string, int> SQLite::get_config(){
+
+	std::string q = query[static_cast<int>(DB_Manual::GET_CONFIG)];
+	int id, t, _port;
+	std::string _if, _pass, en_pass, _ip;
+	db<<q >>[&](int bid, std::string iface, int tout, std::string bpass,
+			std::string epass, std::string ip, int port){
+				id = bid; _if = iface; t = tout;
+				_pass = bpass; en_pass = epass; 
+				_ip = ip; _port = port;
+			};
+	return {id, _if, t, _pass, en_pass, _ip, _port};
+
 }
 std::vector<std::string> SQLite::select_all_records(){
 

@@ -1,13 +1,15 @@
 #ifndef SQLITE__HPP
 #define SQLITE__HPP
 #include<iostream>
-//#include<sqlite_modern_cpp.h>
-#include "lib/cpp_sqlite.hpp"
+#include<tuple>
+
+#include "../lib/cpp_sqlite.hpp"
 namespace Sqlite{
 
 using namespace sqlite;
 
-enum class DB_Manual: int { ID_MAX=0, INSERT_FILTER=1, INSERT_MAIN=2 ,UPDATE=3, STATUS=4, M_STATUS=5, M_ALL=6, F_ALL=7};
+enum class DB_Manual: int { ID_MAX=0, INSERT_FILTER=1, INSERT_MAIN=2, 
+	UPDATE=3, STATUS=4, M_STATUS=5, M_ALL=6, F_ALL=7, GET_CONFIG=8, SET_CONFIG=9, UP_CONFIG=10, DEL_CONFIG=11};
 const std::vector<std::string> query = {"select max(id) from ", 
 	"insert into Taro_Filter (id,filter) values (?,?);",
 	"insert into Taro (rule,threshold,bytes,packets,stime,etime,status) values (?,?,?,?,?,?,?);",
@@ -15,7 +17,12 @@ const std::vector<std::string> query = {"select max(id) from ",
 	"select status from Taro where id == ?;",
 	"select exists(select id from Taro where rule == ? AND status == ?) ;",
 	"select * from Taro ",
-	"select * from Taro_Filter "
+	"select * from Taro_Filter ",
+	"select bgpid,interface,timeout,bgppass,enablepass,bgpdip,bgpdport from Taro_Config where id == 1;",
+	"insert into Taro_Config (bgpid) values (?);",
+	"update Taro_Config set ",
+	"drop table if exists Taro_Config;"
+
 };
 /*
  *This class is going to handle sqlite database
@@ -40,13 +47,20 @@ public:
 	bool status(std::string rule, std::string stat);	
 	std::vector<std::string> select_all_records();
 	unsigned int get_last_id();
+	/* get config*/
+	std::tuple<int, std::string, int,
+		std::string, std::string,
+		std::string, int> get_config();
+	bool set_config(int bgpid, std::string iface, int tout,
+		    std::string bpass, std::string enpass,
+		    std::string bip, int port);
+	/* For initializing, as table has only one row for config*/
+	static bool conf;
 
 private:
 	database db;
 	const std::string tb_name;
-
-
-
+	bool create_conf_table();
 };
 }
 #endif
