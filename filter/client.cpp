@@ -1,7 +1,6 @@
 #include "client.hpp"
 
-Client::Client(std::string ip, unsigned short port_):io_context_(), 
-	socket_(io_context_),ep(boost::asio::ip::address::from_string(ip), port_),
+Client::Client(boost::asio::io_context& io_context_, std::string ip, unsigned short port_):	  socket_(io_context_),ep(boost::asio::ip::address::from_string(ip), port_),
 	port(port_){}
 	
 bool Client::connect(){

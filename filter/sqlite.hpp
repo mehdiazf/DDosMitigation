@@ -56,11 +56,13 @@ public:
 		    std::string bip, int port);
 	/* For initializing, as table has only one row for config*/
 	static bool conf;
+	static bool init_database;
 
 private:
 	database db;
 	const std::string tb_name;
 	bool create_conf_table();
+
 };
 }
 #endif

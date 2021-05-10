@@ -19,7 +19,7 @@ class Client{
 
 public:
 
-	Client(std::string ip, unsigned short port);
+	Client(boost::asio::io_context& io_context_, std::string ip, unsigned short port);
 	bool connect();
 	void close();
 	bool send(const std::string);
@@ -27,7 +27,7 @@ public:
 
 private:
 
-	boost::asio::io_context io_context_;
+	//boost::asio::io_context io_context_;
 	tcp::socket socket_;
 	tcp::endpoint ep;
 	unsigned short port;

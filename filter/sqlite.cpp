@@ -7,29 +7,31 @@ using namespace std;
 
 SQLite::SQLite(std::string tb):db("Tarodb.db"), tb_name(tb){
 
-	db <<"PRAGMA foreign_keys=ON;";
-	db <<
-	"create table if not exists Taro ("
-	"   id integer primary key autoincrement not null unique,"
-	"   rule text not null,"
-	"   threshold text not null,"
-	"   bytes  int,"
-	"   packets int,"
-	"   stime text not null,"
-	"   etime text not null,"
-	"   status text not null"
-	");";
-	
-	db <<
-	"create table if not exists Taro_Filter ("
-	"   id integer not null,"
-	"   filter text,"
-	"   foreign key(id) references Taro(id)"//on update action on delete action"
-	");";
-
+	if(init_database){
+		db <<"PRAGMA foreign_keys=ON;";
+		db <<
+		"create table if not exists Taro ("
+		"   id integer primary key autoincrement not null unique,"
+		"   rule text not null,"
+		"   threshold text not null,"
+		"   bytes  int,"
+		"   packets int,"
+		"   stime text not null,"
+		"   etime text not null,"
+		"   status text not null"
+		");";
+		
+		db <<
+		"create table if not exists Taro_Filter ("
+		"   id integer not null,"
+		"   filter text,"
+		"   foreign key(id) references Taro(id)"//on update action on delete action"
+		");";
+		SQLite::init_database = false;
+		}
 }
 bool SQLite::create_conf_table(){
-
+	
 	db <<
 	"create table if not exists Taro_Config ("
 	"   id integer primary key autoincrement not null unique,"
@@ -161,12 +163,19 @@ bool SQLite::status(std::string rule, std::string stat){
 bool SQLite::set_config(int bgpid, std::string iface, int tout,std::string bpass,
 		std::string enpass, std::string bip, int port){
 
-	if(!conf){
-		db<<query[static_cast<int>(DB_Manual::DEL_CONFIG)];
-		create_conf_table();
-		db<<query[static_cast<int>(DB_Manual::SET_CONFIG)]
-			<< 0 ;
-		conf = 1;
+	if(conf){
+
+		try{
+			db<<query[static_cast<int>(DB_Manual::DEL_CONFIG)];
+			create_conf_table();
+			db<<query[static_cast<int>(DB_Manual::SET_CONFIG)]
+				<< 0 ;
+			conf = 0;
+			
+		}catch(std::exception& e){
+			std::cerr<<e.what()<<std::endl;
+			return false;
+		}
 	}
 	std::string q = query[static_cast<int>(DB_Manual::UP_CONFIG)];
 	q+= "bgpid = %d, interface = '%s', timeout = %d, bgppass = '%s', enablepass = '%s', bgpdip = '%s', bgpdport = %d where id == 1;";
@@ -179,7 +188,7 @@ bool SQLite::set_config(int bgpid, std::string iface, int tout,std::string bpass
 
 	try{
 		db << buf.c_str();
-	}catch(std::exception &e){
+	}catch(std::exception& e){
 		std::cerr<<e.what()<<std::endl;
 		return false;
 	}
@@ -192,12 +201,17 @@ std::tuple<int, std::string, int, std::string, std::string, std::string, int> SQ
 	std::string q = query[static_cast<int>(DB_Manual::GET_CONFIG)];
 	int id, t, _port;
 	std::string _if, _pass, en_pass, _ip;
+	try{
 	db<<q >>[&](int bid, std::string iface, int tout, std::string bpass,
 			std::string epass, std::string ip, int port){
 				id = bid; _if = iface; t = tout;
 				_pass = bpass; en_pass = epass; 
 				_ip = ip; _port = port;
 			};
+	}catch(std::exception& e){
+		std::cerr<<e.what()<<std::endl;
+		return {0,"",0,"","","",0};
+	}
 	return {id, _if, t, _pass, en_pass, _ip, _port};
 
 }

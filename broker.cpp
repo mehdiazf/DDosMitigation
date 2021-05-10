@@ -38,7 +38,7 @@ void read_cb(struct bufferevent *, void *);
 void error_cb(struct bufferevent *, short, void *);
 void accept_cb(evutil_socket_t, short, void *);
 std::string not_in_db(std::string);
-void update_db(std::string);
+bool update_db(std::string);
 bool load_config();
 /*
  * XXX action callbacks
@@ -46,7 +46,8 @@ bool load_config();
  * ? void update_db(int, char*)
  * ...
  */
-bool Sqlite::SQLite::conf = 0 ;
+bool Sqlite::SQLite::conf = true;
+bool Sqlite::SQLite::init_database = true ;
 
 int
 main(int argc, char **argv)
@@ -75,7 +76,6 @@ main(int argc, char **argv)
 		std::cerr<<"Couldn't load config file!"<<std::endl;
 		return 1;
 	}
-
 	/* daemonise */
 	if(!dflag)
 		int x;
@@ -199,10 +199,33 @@ get_time(){
 	return std::string(buf);
 
 }
+void
+erase_garbage(std::vector<std::string>& r){
+
+	std::vector<std::string>::iterator it = std::find(r.begin(), r.end(), "--bps-th-period");
+	std::vector<std::string>::iterator e = it;
+	e++; e++;
+
+	if(it != r.end())
+		r.erase(it, e);
+
+	it = std::find(r.begin(), r.end(), "--pps-th-period");
+	e = it; e++; e++;
+	if(it != r.end())
+		r.erase(it, e);
+
+	it = std::find(r.begin(), r.end(), "-c");
+	e = it; e++; e++;
+	if(it != r.end())
+		r.erase(it, e);
+}
+
 std::string
 not_in_db(std::string rule){
 
 	std::vector<std::string> prs_rule = space_tokenize(rule);
+	erase_garbage(prs_rule);
+
 	std::vector<std::string>::iterator it = std::find(prs_rule.begin(), prs_rule.end(), "IP");
 	std::vector<std::string>::iterator itt;
 	std::string ip, tmp{}, dtmp{};
@@ -219,10 +242,13 @@ not_in_db(std::string rule){
 		for(auto i = ++itt; i< std::find(itt, prs_rule.end(), "--filter");i++)
 			dtmp+= (i != prs_rule.end())? (*i + " "): ("\n");
 
+
+		std::cout<<dtmp<<std::endl;
 		using namespace Sqlite;
 		SQLite sq("Taro");
 		if(!sq.status(dtmp, "RUNNING")){
-			sq.insert_record(dtmp, "0", get_time() ,"RUNNING");
+			if(!sq.insert_record(dtmp, "0", get_time() ,"RUNNING"))	
+				return "";
 
 			for(auto i = itt; i<= prs_rule.end();i++)
 				tmp+= (i != prs_rule.end())? (*i + " "): ("\n");
@@ -254,6 +280,7 @@ read_cb(struct bufferevent *bev, void *ctx)
 	char req_type[10];
 	char *rules = (char *) ::operator new(strlen(line) + 1, std::nothrow); 
 	std::sscanf(line, "%s %[^\t\n]", req_type, rules);
+	std::cout<<rules<<std::endl;
 	/*
 	 * Parse rules and act based on req_type[5]
 	 */
@@ -265,6 +292,7 @@ read_cb(struct bufferevent *bev, void *ctx)
 			if (fork() == 0) {
 				if(fork() == 0 ){
 //					daemon(0,0);
+
 					int fd = open("/tmp",  O_EXCL | O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
 					if(fd<0){
 						std::cerr<<"Couldn't create process."<<std::endl;
@@ -283,15 +311,23 @@ read_cb(struct bufferevent *bev, void *ctx)
 			}
 		}
 	}
-	if (strcmp(req_type, "FINISH") == 0) {
+	else if (strcmp(req_type, "FINISH") == 0) {
 		/* update databse */
-		update_db(rules);
-		evbuffer_add(output, "OK!\n",5);
+		if(update_db(rules))
+			evbuffer_add(output, "OK!\n",5);
+		else
+			evbuffer_add(output, "WRONG!\n",8);
 	}
+	 else{
+	 	//bufferevent_free(bev);
+	  	evbuffer_add(output, "WRONG REQ!\n", 10);
+	  }
+
 	delete rules;
 	free(line);
+	// bufferevent_free(bev);
 }
-void update_db(std::string data){
+bool update_db(std::string data){
 
 	std::vector<std::string> prs_data = space_tokenize(data);
 	if(prs_data.size() == 3){
@@ -300,16 +336,18 @@ void update_db(std::string data){
 		int packets = std::atoi(prs_data[2].c_str());
 		using namespace Sqlite;
 		SQLite sq("Taro");
-		sq.update_record(id, bytes, packets, get_time(), "DONE");
+		if(sq.update_record(id, bytes, packets, get_time(), "DONE"))
+			return true;
 	}
+	return false;
 }
 
 void
 error_cb(struct bufferevent *bev, short error, void *ctx)
 {
 	/* XXX - improve error handling */
-	if (error & BEV_EVENT_EOF)
-		perror("connection closed");
+//	if (error & BEV_EVENT_EOF)
+//		perror("connection closed");
 	if (error & BEV_EVENT_ERROR)
 		perror(NULL);
 	if (error & BEV_EVENT_TIMEOUT)
@@ -323,7 +361,7 @@ accept_cb(evutil_socket_t listener, short event, void *arg)
 	struct event_base *base = static_cast<event_base *>(arg);
 	struct sockaddr_storage ss;
 	socklen_t slen = sizeof(ss);
-	int fd = accept4(listener, (struct sockaddr*)&ss, &slen, SOCK_CLOEXEC);
+	int fd = accept4(listener, (struct sockaddr*)&ss, &slen, SOCK_CLOEXEC | SOCK_NONBLOCK);
 	if (fd < 0)
 		perror("accept");
 	else if (fd > FD_SETSIZE)

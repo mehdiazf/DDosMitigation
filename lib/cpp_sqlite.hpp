@@ -1,3 +1,6 @@
+#ifndef CPP_SQLITE_HPP
+#define CPP_SQLITE_HPP
+
 #include<iostream>
 #include<algorithm>
 #include<cctype>
@@ -244,6 +247,4 @@ namespace sqlite{
 
 
 }
-
-
-
+#endif

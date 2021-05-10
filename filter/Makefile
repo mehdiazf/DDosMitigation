@@ -9,8 +9,8 @@ LDFLAGS = -L /usr/local/lib -lboost_system -pthread  -lboost_thread  -lboost_pro
 CPPFLAGS = -std=c++17 -Wall
 
 all: $(PROGS)
-../Filter: $(OBJ)/anomaly.o $(OBJ)/ip.o $(OBJ)/parser.o $(OBJ)/functions.o $(OBJ)/afsniff.o $(OBJ)/exceptions.o $(OBJ)/monitor.o $(OBJ)/iptable.o $(OBJ)/sqlite.o $(OBJ)/client.o main.o 
-	$(CXX) $(CPPFLAGS) $^ -o $@ $(LDFLAGS)
+../Filter: $(OBJ)/anomaly.o $(OBJ)/bgp.o $(OBJ)/ip.o $(OBJ)/parser.o $(OBJ)/functions.o $(OBJ)/afsniff.o $(OBJ)/exceptions.o $(OBJ)/monitor.o $(OBJ)/iptable.o $(OBJ)/sqlite.o $(OBJ)/client.o $(OBJ)/filter.o 
+		$(CXX) $(CPPFLAGS) $^ -o $@ $(LDFLAGS)
 
 $(OBJ)/exceptions.o: exceptions.cpp
 	$(CXX) $(CPPFLAGS) -c exceptions.cpp -o $(OBJ)/exceptions.o $(LDFLAGS)
@@ -42,9 +42,12 @@ $(OBJ)/sqlite.o: sqlite.cpp
 $(OBJ)/client.o: client.cpp
 	$(CXX) $(CPPFLAGS) -c client.cpp -o $(OBJ)/client.o $(LDFLAGS)
 
-main.o: main.cpp
-	$(CXX) $(CPPFLAGS) -c main.cpp -o main.o $(LDFLAGS) -fpermissive
+$(OBJ)/bgp.o: bgp.cpp
+	$(CXX) $(CPPFLAGS) -c bgp.cpp -o $(OBJ)/bgp.o $(LDFLAGS)
+
+$(OBJ)/filter.o: filter.cpp
+	$(CXX) $(CPPFLAGS) -c filter.cpp -o $(OBJ)/filter.o $(LDFLAGS) -fpermissive
 
 clean:
-	$(RM) $(CLEANFILES)
+	@$(RM) $(CLEANFILES)
 
