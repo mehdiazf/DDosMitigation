@@ -62,24 +62,25 @@ void watcher(std::vector<std::shared_ptr<Anomaly>> & threads_collect,
     }
     
 }
-bool end_process(std::shared_ptr<Client>& _client, int id, int byte, int packet){
+int end_process(std::shared_ptr<Client>& _client, int id, int byte, int packet){
 
+	static int max_try = 0;
 	try{
 	if(!_client->connect())
-		return false;
+		return ++max_try;
 	std::string data = std::string(END_PHRASE) + " " + std::to_string(id) + 
 		" " + std::to_string(byte) + " " + std::to_string(packet) + "\n";
 	if(_client->send(data))
 		if(_client->read("\n") == "OK!\n"){
 			_client->close();
-			return true;
+			return 0;
 		}
 	}catch(...){
 		_client->close();
-		return false;
+		return ++max_try;
 	}
 	_client->close();
-	return false;
+	return ++max_try;
 }
 void task_runner(std::shared_ptr<ts_queue<token>> task, int id, int timeout,
 	       	uint8_t proto, uint32_t dst_addr, std::shared_ptr<Iptable>& ipt, std::shared_ptr<Client>& _client, std::shared_ptr<Bgp>& bgp){
@@ -103,10 +104,12 @@ void task_runner(std::shared_ptr<ts_queue<token>> task, int id, int timeout,
 	if( xx > timeout){
 		try{
 			struct ipt_counters x = ipt->get_counters();
-			if(bgp->remove_announce() || bgp->status())
-				if(end_process(_client, id, x.bcnt, x.pcnt))
+			if(!bgp->status() || bgp->remove_announce())
+			{
+				int try_ = end_process(_client, id, x.bcnt, x.pcnt);
+				if(try_ == 0 || try_ > 7)
 					kill(getpid(), SIGTERM);
-			
+			}
 		}catch(...){
 			continue;
 		}
@@ -165,14 +168,14 @@ int main(int argc, char ** argv){
 
     using namespace Sqlite;
     SQLite sq("Taro_Config");
-    auto [bgpid, interface, timeout, bgppass, enable_pass, bgp_ip, bgp_port ] = sq.get_config();
+    auto [bgpid, interface, timeout, bgppass, enable_pass, bgp_ip, bgp_port, mainip, mainport ] = sq.get_config();
     if(bgpid == 0){
 	    std::cerr<<"Couldn't get config!";
 		    return 1;
     }
 
     boost::asio::io_context io_context_;
-    std::shared_ptr<Client> _client = std::make_shared<Client>(io_context_ ,"127.0.0.1", 9200);
+    std::shared_ptr<Client> _client = std::make_shared<Client>(io_context_ , mainip, mainport);
     int id;//, timeout = 5;
     if(input_p[0] == "ID"){
 	    id = std::atoi(input_p[1].c_str());

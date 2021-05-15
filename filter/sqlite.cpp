@@ -41,7 +41,9 @@ bool SQLite::create_conf_table(){
 	"   bgppass text,"
 	"   enablepass text,"
 	"   bgpdip text,"
-	"   bgpdport int"
+	"   bgpdport int,"
+	"   mainip text,"
+	"   mainport int"
 	");";
 	return true;
 }
@@ -161,7 +163,7 @@ bool SQLite::status(std::string rule, std::string stat){
 	return false;
 }
 bool SQLite::set_config(int bgpid, std::string iface, int tout,std::string bpass,
-		std::string enpass, std::string bip, int port){
+		std::string enpass, std::string bip, int port, std::string mip, int mport){
 
 	if(conf){
 
@@ -178,13 +180,14 @@ bool SQLite::set_config(int bgpid, std::string iface, int tout,std::string bpass
 		}
 	}
 	std::string q = query[static_cast<int>(DB_Manual::UP_CONFIG)];
-	q+= "bgpid = %d, interface = '%s', timeout = %d, bgppass = '%s', enablepass = '%s', bgpdip = '%s', bgpdport = %d where id == 1;";
+	q+= "bgpid = %d, interface = '%s', timeout = %d, bgppass = '%s', \
+	       enablepass = '%s', bgpdip = '%s', bgpdport = %d, mainip = '%s' , mainport = %d where id == 1;";
 			
 	auto size = std::snprintf(nullptr, 0, q.c_str(), bgpid, iface.c_str(), tout, 
-			bpass.c_str(), enpass.c_str(), bip.c_str(), port);
+			bpass.c_str(), enpass.c_str(), bip.c_str(), port, mip.c_str(), mport);
 	std::string buf(size + 1 ,'\0');
 	std::sprintf(&buf[0], q.c_str(), bgpid, iface.c_str(), tout, 
-			bpass.c_str(), enpass.c_str(), bip.c_str(), port);
+			bpass.c_str(), enpass.c_str(), bip.c_str(), port, mip.c_str(), mport);
 
 	try{
 		db << buf.c_str();
@@ -196,24 +199,38 @@ bool SQLite::set_config(int bgpid, std::string iface, int tout,std::string bpass
 	return true;
 
 }
-std::tuple<int, std::string, int, std::string, std::string, std::string, int> SQLite::get_config(){
+std::tuple<int, std::string, int, std::string, std::string, std::string, int, std::string, int> SQLite::get_config(){
 
 	std::string q = query[static_cast<int>(DB_Manual::GET_CONFIG)];
-	int id, t, _port;
-	std::string _if, _pass, en_pass, _ip;
+	int id, t, _port, mport;
+	std::string _if, _pass, en_pass, _ip, mip;
 	try{
 	db<<q >>[&](int bid, std::string iface, int tout, std::string bpass,
-			std::string epass, std::string ip, int port){
+			std::string epass, std::string ip, int port, std::string _mip, int _mport){
 				id = bid; _if = iface; t = tout;
 				_pass = bpass; en_pass = epass; 
-				_ip = ip; _port = port;
+				_ip = ip; _port = port; mip = _mip; mport = _mport;
 			};
 	}catch(std::exception& e){
 		std::cerr<<e.what()<<std::endl;
-		return {0,"",0,"","","",0};
+		return {0,"",0,"","","",0,"",0};
 	}
-	return {id, _if, t, _pass, en_pass, _ip, _port};
+	return {id, _if, t, _pass, en_pass, _ip, _port, mip, mport};
 
+}
+std::vector<int> SQLite::pre_check(){
+
+	std::string q = query[static_cast<int>(DB_Manual::UNDONE)];
+	std::vector<int> res;
+	try{
+		db<<q >>[&](int id_){
+			res.push_back(id_);
+		};
+	}catch(std::exception& e){
+		std::cerr<<e.what()<<std::endl;
+		res.clear();
+	}
+	return res;
 }
 std::vector<std::string> SQLite::select_all_records(){
 

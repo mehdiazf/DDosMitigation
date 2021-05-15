@@ -8,7 +8,7 @@ bool Client::connect(){
 	try{
 		socket_.connect(ep);
 	}catch(boost::system::system_error &e){
-		std::cerr<<"Coudn't connect to port number(! "<<port <<") "
+		std::cerr<<"Coudn't connect to port number("<<port <<") "
 			<<e.what()<<std::endl;
 	}
 

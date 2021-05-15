@@ -1,9 +1,10 @@
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
 #include <fcntl.h>
-#include<unistd.h>
+#include <unistd.h>
 
 #include <event2/event.h>
 #include <event2/buffer.h>
@@ -33,13 +34,15 @@
 
 
 void usage(void);
-bool tcplisten(char *, struct event_base *);
+bool tcplisten(const char *,const char *, struct event_base *);
 void read_cb(struct bufferevent *, void *);
 void error_cb(struct bufferevent *, short, void *);
 void accept_cb(evutil_socket_t, short, void *);
 std::string not_in_db(std::string);
 bool update_db(std::string);
-bool load_config();
+bool load_config(std::string&, std::string&);
+bool db_pre_check();
+std::string get_time();
 /*
  * XXX action callbacks
  * ? void action_cb(char *);
@@ -52,7 +55,7 @@ bool Sqlite::SQLite::init_database = true ;
 int
 main(int argc, char **argv)
 {
-	std::string port{"9200"};
+	std::string port{"9200"}, ip{"127.0.0.1"};
 	int ch, dflag = 0;
 
 	while ((ch = getopt(argc, argv, "dhp:")) != -1) {
@@ -71,8 +74,12 @@ main(int argc, char **argv)
 		        return 1;
 		}
 	}
+	if(!db_pre_check()){
+		std::cerr<<"Couldn't Update database!"<<std::endl;
+		return 1;
+	}
 
-	if(!load_config()){
+	if(!load_config(port, ip)){
 		std::cerr<<"Couldn't load config file!"<<std::endl;
 		return 1;
 	}
@@ -96,13 +103,26 @@ main(int argc, char **argv)
 		return 1;
 	}
 
-	tcplisten(const_cast<char *>(port.c_str()), base);
+	tcplisten(port.c_str(), ip.c_str(),  base);
 	
 	return 0;
 }
+/* Update undone records*/
+bool
+db_pre_check(){
+
+	using namespace Sqlite;
+	SQLite sq("Taro");
+	std::vector<int> res = sq.pre_check();
+	for(auto id: res)
+		if(!sq.update_record(id, 0, 0, get_time(), "DONE"))
+			return false;
+
+	return true;
+}
 /* Load config file for filter process*/
 bool 
-load_config(){
+load_config(std::string& port, std::string& ip){
 	
 	const std::string config_file = "/etc/ddosdetector.conf";
 	int bgpid =0,timeout =5, _port =0;
@@ -117,6 +137,8 @@ load_config(){
 		("General.Enable_Pass", po::value<std::string>(&enpass))
 		("General.Bgpd_Ip", po::value<std::string>(&_ip))
 		("General.Bgpd_Port", po::value<int>(&_port))
+		("Main.Main_Port", po::value<std::string>(&port))
+		("Main.Main_IP", po::value<std::string>(&ip))
 		;
 	po::variables_map vm;
 	try{
@@ -137,7 +159,7 @@ load_config(){
 	}
 	using namespace Sqlite;
 	SQLite sq("Taro_Config");
-	return sq.set_config(bgpid, iface, timeout, bpass, enpass, _ip, _port);
+	return sq.set_config(bgpid, iface, timeout, bpass, enpass, _ip, _port, ip, std::atoi(port.c_str()));
 }
 /*
  * XXX tcplisten() only listens on IPv4 at present and does no
@@ -145,14 +167,20 @@ load_config(){
  * evutil_getaddrinfo() from event2/util.h later.
  */
 bool
-tcplisten(char *port, struct event_base *base)
+tcplisten(const char *port, const char *ip, struct event_base *base)
 {
 	evutil_socket_t listener;
 	struct sockaddr_in sin;
+	struct in_addr saddr;
 	struct event *listener_event;
 	
+	if(inet_pton(AF_INET, ip, &saddr) != 1){
+		std::cerr<<"Coudn't bind to address " + std::string(ip)<<std::endl;
+		return 1;
+	}
+
 	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = 0;
+	sin.sin_addr.s_addr = saddr.s_addr;
 	sin.sin_port = htons(atoi(port));
 	
 	listener = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
