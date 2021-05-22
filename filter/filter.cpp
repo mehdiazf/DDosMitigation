@@ -132,11 +132,12 @@ void task_runner(std::shared_ptr<ts_queue<token>> task, int id, int timeout,
 
 				if(!df.insert_record(id,data))
 					continue;
-				ipt->add_rule(tmp);
+				ipt->add_rule(tmp); 
 				rule_list.push_back(str);
 			}
-		}catch(...)
+		}catch(std::exception& e)
 		{
+			std::cout<<e.what()<<std::endl;
 			continue;
 
 		}

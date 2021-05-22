@@ -36,13 +36,8 @@ Iptable::Iptable(std::string inface, std::string id_, unsigned int prot_, std::v
 	add_options(input);
 	chn_name.append(id);
 	strncpy(chain, chn_name.c_str(), chn_name.size() );
-	const char * t = table.c_str();
-	h = iptc_init(t);
-	if(!h)
-	    throw std::bad_exception();
 	
 	add_chain();
-	
    	memset(&rl.en, 0, sizeof(rl.en));
         rl.en.ip.dst.s_addr = 0;
         rl.en.ip.dmsk.s_addr = 0x0;
@@ -142,6 +137,10 @@ void Iptable::add_options(std::vector<std::string> & in){
 }
 bool Iptable::add_chain(){
 
+	const char * t = table.c_str();
+	h = iptc_init(t);
+	if(!h)
+	    throw std::bad_exception();
 
 	if(!iptc_create_chain(chain,h)){
 		iptc_free(h);
@@ -179,6 +178,7 @@ bool Iptable::set_chain_rule(){
             	throw std::runtime_error(iptc_strerror(errno));
 	}	
 	iptc_free(h);
+	strncpy(rl.target.target.u.user.name, IPTC_LABEL_DROP, IPT_FUNCTION_MAXNAMELEN); 
 	return x;
 }
 ipt_counters Iptable::get_counters(){
@@ -215,10 +215,7 @@ bool Iptable::return_rule(){
             	throw std::runtime_error(iptc_strerror(errno));
 	}	
 	iptc_free(h);
-	strncpy(rl.target.target.u.user.name, IPTC_LABEL_DROP, IPT_FUNCTION_MAXNAMELEN); 
 	return x;
-
-
 }
 bool Iptable::insert_rule(bool match_rule){
 	
