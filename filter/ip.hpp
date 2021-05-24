@@ -96,11 +96,11 @@ class Tcp: public IpRule{
     
 public:
     Tcp();
-    Tcp(const std::vector<std::string>& tkn_rule);
+    explicit Tcp(const std::vector<std::string>& tkn_rule);
     void parse();
     bool check_packet(const void * hdr,
                       const uint32_t s_addr,
-                      const uint32_t d_addr) const;
+                      const uint32_t d_addr) const override;
     
     NumRange<uint16_t> dport;
     NumRange<uint16_t> sport;
@@ -117,11 +117,11 @@ class Udp: public IpRule{
         
 public:
     Udp();
-    Udp(const std::vector<std::string>& tkn_rule);
+    explicit Udp(const std::vector<std::string>& tkn_rule);
     void parse();
     bool check_packet(const void * hdr,
                       const uint32_t s_addr,
-                      const uint32_t d_addr) const;  
+                      const uint32_t d_addr) const override;  
     NumRange<uint16_t> dport;
     NumRange<uint16_t> sport;
     NumComparable<uint8_t> len;
@@ -133,11 +133,11 @@ class Icmp: public IpRule{
     
 public:
     Icmp();
-    Icmp(const std::vector<std::string>& tkn_rule);
+    explicit Icmp(const std::vector<std::string>& tkn_rule);
     void parse();
     bool check_packet(const void * hdr,
                       const uint32_t s_addr,
-                      const uint32_t d_addr) const;   
+                      const uint32_t d_addr) const override;   
     NumComparable<uint8_t> type;
     NumComparable<uint8_t> code;
     boost::program_options::options_description _opt;

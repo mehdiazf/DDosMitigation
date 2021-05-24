@@ -29,7 +29,7 @@ void Anomaly::check_triggers(std::shared_ptr<ts_queue<token>> & l){
     monitor_.check_triggers(rule_->pps_trigger, rule_->bps_trigger, l);
     
 }
-void Anomaly::add_filter_rule(std::string str){
+void Anomaly::add_filter_rule(const std::string& str){
     
    
     std::map<std::string, int> filter_map = filter_tokenize(str);  

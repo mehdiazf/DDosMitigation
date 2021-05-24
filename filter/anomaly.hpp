@@ -23,7 +23,7 @@ public:
                       const unsigned int len);
     void calc_data(const Anomaly& anom);
     void check_triggers(std::shared_ptr<ts_queue<token>> & l);
-    void add_filter_rule(std::string str);
+    void add_filter_rule(const std::string& str);
     
     
 private:

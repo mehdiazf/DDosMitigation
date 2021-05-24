@@ -39,7 +39,7 @@ struct block_desc {
 class AF_packet{
     
 public:
-    AF_packet(std::string ifname,boost::thread_group & grp,
+    AF_packet(const std::string& ifname,boost::thread_group & grp,
             std::vector<std::shared_ptr<Anomaly>> & anom, const Anomaly & anoml, uint8_t p );
     ~AF_packet();
     void start();

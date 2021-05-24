@@ -2,9 +2,9 @@
 
 namespace BGP{
 
-Bgp::Bgp(boost::asio::io_context& io_context_, std::string p, std::string e_p ,std::string ip_, unsigned int r_id,unsigned short port_):
+Bgp::Bgp(boost::asio::io_context& io_context_, std::string& p, std::string& e_p ,std::string& ip_, unsigned int r_id,unsigned short port_):
 	Bgp(io_context_,0,p, e_p, ip_, r_id, port_){}
-Bgp::Bgp(boost::asio::io_context& io_context_, uint32_t ip, std::string p, std::string e_p ,std::string ip_, unsigned int r_id,unsigned short port_):
+Bgp::Bgp(boost::asio::io_context& io_context_, uint32_t ip, std::string& p, std::string& e_p ,std::string& ip_, unsigned int r_id,unsigned short port_):
 	Client(io_context_ ,ip_, port_),
 	pass(p + "\r\n"),
        	enable_pass(e_p + "\r\n"),
@@ -77,7 +77,7 @@ bool Bgp::login(){
 
 	return true;
 }
-bool Bgp::send_request(uint32_t ip, std::string str){
+bool Bgp::send_request(uint32_t ip, const std::string& str){
 
 	if(!login())
 		return false;

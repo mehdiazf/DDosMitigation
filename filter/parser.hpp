@@ -54,10 +54,6 @@ namespace parser
         boost::program_options::variables_map parse(
             const std::vector<std::string>& tokenize_input);
         /*
-         Displaying help for commands from the current options_
-        */
-        void help() const;
-        /*
          Reverse operation - gluing vector <string> into one line
          @param v: the vector of strings to be concatenated
         */

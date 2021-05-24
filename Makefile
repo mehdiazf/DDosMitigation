@@ -5,7 +5,7 @@ Filter = Filter
 PROGS = $(Filter) Supervisor
 CLEANFILES = $(PROGS) *.o
 RM = rm -rf
-LDFLAGS = -L /usr/local/lib -lboost_system -lboost_program_options -ldl -lsqlite3 -levent
+LDFLAGS = -L /usr/local/lib -lboost_system -pthread -lboost_thread -lboost_chrono -lboost_program_options -ldl -lsqlite3 -levent
 CPPFLAGS = -std=c++17 -Wall
 MAKE = make
 FILTER_DIR = filter

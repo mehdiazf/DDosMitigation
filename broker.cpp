@@ -20,12 +20,13 @@
 #include <errno.h>
 #include <err.h>
 
-#include<iostream>
-#include<vector>
-#include<string>
-#include<ctime>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <ctime>
 
-#include<boost/program_options.hpp>
+#include <boost/program_options.hpp>
+#include <boost/thread.hpp>
 
 #include "filter/functions.hpp"
 #include "filter/sqlite.hpp"
@@ -38,8 +39,8 @@ bool tcplisten(const char *,const char *, struct event_base *);
 void read_cb(struct bufferevent *, void *);
 void error_cb(struct bufferevent *, short, void *);
 void accept_cb(evutil_socket_t, short, void *);
-std::string not_in_db(std::string);
-bool update_db(std::string);
+std::string not_in_db(const std::string&);
+bool update_db(const std::string&);
 bool load_config(std::string&, std::string&);
 bool db_pre_check();
 std::string get_time();
@@ -84,9 +85,8 @@ main(int argc, char **argv)
 		return 1;
 	}
 	/* daemonise */
-	if(!dflag)
-		int x;
-	//daemon(0, 0);
+//	if(!dflag)
+//		daemon(1, 0);
 	
 	setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -232,24 +232,24 @@ erase_garbage(std::vector<std::string>& r){
 
 	std::vector<std::string>::iterator it = std::find(r.begin(), r.end(), "--bps-th-period");
 	std::vector<std::string>::iterator e = it;
-	e++; e++;
+	++e; ++e;
 
 	if(it != r.end())
 		r.erase(it, e);
 
 	it = std::find(r.begin(), r.end(), "--pps-th-period");
-	e = it; e++; e++;
+	e = it; ++e; ++e;
 	if(it != r.end())
 		r.erase(it, e);
 
 	it = std::find(r.begin(), r.end(), "-c");
-	e = it; e++; e++;
+	e = it; ++e; ++e;
 	if(it != r.end())
 		r.erase(it, e);
 }
 
 std::string
-not_in_db(std::string rule){
+not_in_db(const std::string& rule){
 
 	std::vector<std::string> prs_rule = space_tokenize(rule);
 	erase_garbage(prs_rule);
@@ -270,19 +270,16 @@ not_in_db(std::string rule){
 		for(auto i = ++itt; i< std::find(itt, prs_rule.end(), "--filter");i++)
 			dtmp+= (i != prs_rule.end())? (*i + " "): ("\n");
 
-
-		std::cout<<dtmp<<std::endl;
 		using namespace Sqlite;
 		SQLite sq("Taro");
 		if(!sq.status(dtmp, "RUNNING")){
-			if(!sq.insert_record(dtmp, "0", get_time() ,"RUNNING"))	
+			if(!sq.insert_record(dtmp, "0", get_time() ,"RUNNING"))
 				return "";
 
 			for(auto i = itt; i<= prs_rule.end();i++)
 				tmp+= (i != prs_rule.end())? (*i + " "): ("\n");
 
 			int id = sq.get_last_id();
-			//int id =(_id == 1)? _id: _id + 1;
 			dtmp = "ID " + std::to_string(id) + " " + tmp;
 			return dtmp;
 		}
@@ -308,7 +305,6 @@ read_cb(struct bufferevent *bev, void *ctx)
 	char req_type[10];
 	char *rules = (char *) ::operator new(strlen(line) + 1, std::nothrow); 
 	std::sscanf(line, "%s %[^\t\n]", req_type, rules);
-	std::cout<<rules<<std::endl;
 	/*
 	 * Parse rules and act based on req_type[5]
 	 */
@@ -319,8 +315,8 @@ read_cb(struct bufferevent *bev, void *ctx)
 		if((prule = not_in_db(rules)) != "" ){
 			if (fork() == 0) {
 				if(fork() == 0 ){
-//					daemon(0,0);
-
+					//daemon(1,0);
+					
 					int fd = open("/tmp",  O_EXCL | O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
 					if(fd<0){
 						std::cerr<<"Couldn't create process."<<std::endl;
@@ -328,7 +324,7 @@ read_cb(struct bufferevent *bev, void *ctx)
 					}
 					write(fd, prule.c_str(), prule.size() + 1);
 					lseek(fd,0,SEEK_SET);
-					const char *argv[]={"Taro_Filter", std::to_string(fd).c_str(), NULL}; //const_cast<char*>(prule.c_str()), NULL};
+					const char *argv[]={"Taro_Filter", std::to_string(fd).c_str(), NULL};
 					execv("./Filter", (char * const *)argv);
 				}
 				else
@@ -355,17 +351,28 @@ read_cb(struct bufferevent *bev, void *ctx)
 	free(line);
 	// bufferevent_free(bev);
 }
-bool update_db(std::string data){
+bool update_db(const std::string& data){
 
 	std::vector<std::string> prs_data = space_tokenize(data);
-	if(prs_data.size() == 3){
+	if(prs_data.size() >= 3){
 		int id = std::atoi(prs_data[0].c_str());
 		int bytes = std::atoi(prs_data[1].c_str());
 		int packets = std::atoi(prs_data[2].c_str());
-		using namespace Sqlite;
-		SQLite sq("Taro");
-		if(sq.update_record(id, bytes, packets, get_time(), "DONE"))
-			return true;
+
+		for(unsigned int i=3; i< prs_data.size(); i++){
+			try{
+				Sqlite::SQLite df("Taro_Filter");
+				if(!df.insert_record(id, prs_data[i])){
+            				boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+					continue;
+				}
+			}catch(...){
+				continue;
+			}
+
+		}
+		Sqlite::SQLite sq("Taro");
+		return sq.update_record(id, bytes, packets, get_time(), "DONE");
 	}
 	return false;
 }

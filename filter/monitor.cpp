@@ -40,7 +40,7 @@ Filter<T>::Filter(const Filter & f){
     
 }
 template <typename T>
-Filter<T>::Filter(std::string _type, unsigned int r):_enable(true),type(_type),
+Filter<T>::Filter(const std::string& _type, unsigned int r):_enable(true),type(_type),
         ratio(r),last_update_(std::chrono::high_resolution_clock::now()),
         token_time_(std::chrono::high_resolution_clock::now()), delay_(2),
         sampling_(0,MAX), rnd_(1234){}

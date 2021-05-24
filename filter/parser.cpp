@@ -34,10 +34,7 @@ namespace parser
         }
         return vm;
     }
-    void CommandParser::help() const
-    {
-        std::cout << options_ << "\n";
-    }
+
     std::string CommandParser::join(const std::vector<std::string>& v)
     {
         std::string res;
@@ -47,7 +44,6 @@ namespace parser
         }
         return res;
     }
-
     // Parser functions ::
     std::pair<uint32_t, uint32_t> range_from_ip_string(const std::string& ipstr)
     {

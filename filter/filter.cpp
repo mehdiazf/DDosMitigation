@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <ctime>
 
 #include<sys/types.h>
 #include<sys/stat.h>
@@ -43,56 +44,61 @@ void watcher(std::vector<std::shared_ptr<Anomaly>> & threads_collect,
     uint8_t first_time =1;       
     for(;;)
     {
-        
-        for(auto& tc: threads_collect)
-        {
+	for(auto& tc: threads_collect)
+	{
 	    
-            *anomly+=*tc;                     	   
-        }                        
-        if(!first_time)
-        {            
-            anomly->calc_data(prev_anom);
-            anomly->check_triggers(task);
-            prev_anom=*anomly;	   
-            
-        }
-        else
-            first_time=0;
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(1000));
+	    *anomly+=*tc;                     	   
+	}                        
+	if(!first_time)
+	{            
+	    anomly->calc_data(prev_anom);
+	    anomly->check_triggers(task);
+	    prev_anom=*anomly;	   
+	    
+	}
+	else
+	    first_time=0;
+	boost::this_thread::sleep_for(boost::chrono::milliseconds(1000));
     }
     
 }
-int end_process(std::shared_ptr<Client>& _client, int id, int byte, int packet){
+bool end_process(std::shared_ptr<Client>& _client, const int id, const int byte, const int packet, const std::vector<std::string>& rule_list){
 
-	static int max_try = 0;
-	try{
-	if(!_client->connect())
-		return ++max_try;
-	std::string data = std::string(END_PHRASE) + " " + std::to_string(id) + 
-		" " + std::to_string(byte) + " " + std::to_string(packet) + "\n";
-	if(_client->send(data))
-		if(_client->read("\n") == "OK!\n"){
-			_client->close();
-			return 0;
+	for(;;)
+	{
+		try{
+			if(!_client->connect())
+				return false;
+			std::string data = std::string(END_PHRASE) + " " + std::to_string(id) + 
+				" " + std::to_string(byte) + " " + std::to_string(packet) + " ";
+			for(auto& x : rule_list)
+				data+=x + " ";
+			data+="\n";
+			if(_client->send(data))
+				if(_client->read("\n") == "OK!\n"){
+					_client->close();
+					return true;
+				}
+		}catch(std::exception& e){
+			std::cerr<<e.what()<<std::endl;
+			//return false;
 		}
-	}catch(...){
 		_client->close();
-		return ++max_try;
+            	boost::this_thread::sleep_for(boost::chrono::milliseconds(std::rand()%1000));
+		//return false;
 	}
-	_client->close();
-	return ++max_try;
+	return false;
 }
 void task_runner(std::shared_ptr<ts_queue<token>> task, int id, int timeout,
 	       	uint8_t proto, uint32_t dst_addr, std::shared_ptr<Iptable>& ipt, std::shared_ptr<Client>& _client, std::shared_ptr<Bgp>& bgp){
 
     std::chrono::high_resolution_clock::time_point _last = std::chrono::high_resolution_clock::now();
     std::chrono::high_resolution_clock::time_point _now;
+    bool bgp_stat = true, try_ = false;
 
     std::vector<std::string> rule_list;
-    std::string str, data;
-    using namespace Sqlite;
-   
-    SQLite df("Taro_Filter");
+    std::string str;
+
     for(;;)
     {
         boost::this_thread::interruption_point();
@@ -100,46 +106,50 @@ void task_runner(std::shared_ptr<ts_queue<token>> task, int id, int timeout,
 	
 	_now = std::chrono::high_resolution_clock::now();
 	auto xx = std::chrono::duration<double>(_now - _last).count(); 
-	std::cout<<xx<<std::endl;
 	if( xx > timeout){
+
+            		boost::this_thread::sleep_for(boost::chrono::milliseconds(std::rand()%1000));
 		try{
 			struct ipt_counters x = ipt->get_counters();
-			if(!bgp->status() || bgp->remove_announce())
+			if(!bgp_stat)
 			{
-				int try_ = end_process(_client, id, x.bcnt, x.pcnt);
-				if(try_ == 0 || try_ > 7)
-					kill(getpid(), SIGTERM);
+				if(!try_)
+					try_ = end_process(_client, id, x.bcnt, x.pcnt, rule_list);
+				if(try_)
+				{
+					if(ipt->remove_all())
+						kill(getpid(), SIGTERM);
+				}
+			}
+			else
+			{
+				bgp->remove_announce();
+				bgp_stat = bgp->status();
 			}
 		}catch(...){
 			continue;
 		}
 	}
 
-        if(task->wait_and_pop(tmp, 1000))
+	if(bgp_stat && task->wait_and_pop(tmp, 1000))
 	{
 		_last = _now;
-		str = tmp.type + " " + std::to_string(tmp.val);
-            	std::cout<<str<<std::endl;
+		if(tmp.type.find("ip") != std::string::npos)
+			str = tmp.type + ":" + boost::asio::ip::make_address_v4(tmp.val).to_string();
+		else
+			str = tmp.type + ":" + std::to_string(tmp.val);
 
 		try
 		{
 			if(std::find( rule_list.begin(), rule_list.end(), str) == rule_list.end())
 			{       
-				if(tmp.type.find("ip") != std::string::npos)
-					data = tmp.type + " " + boost::asio::ip::make_address_v4(tmp.val).to_string();
-				else
-					data = str;
-
-				if(!df.insert_record(id,data))
-					continue;
 				ipt->add_rule(tmp); 
 				rule_list.push_back(str);
 			}
+
 		}catch(std::exception& e)
 		{
 			std::cout<<e.what()<<std::endl;
-			continue;
-
 		}
     
 	}
@@ -167,17 +177,29 @@ int main(int argc, char ** argv){
     }
     close(std::atoi(argv[1]));
 
-    using namespace Sqlite;
-    SQLite sq("Taro_Config");
-    auto [bgpid, interface, timeout, bgppass, enable_pass, bgp_ip, bgp_port, mainip, mainport ] = sq.get_config();
-    if(bgpid == 0){
-	    std::cerr<<"Couldn't get config!";
-		    return 1;
+    int bgpid, timeout, bgp_port, mainport;
+    std::string interface, bgppass, enable_pass, bgp_ip, mainip;  
+    std::srand(std::time(nullptr));
+    for(;;){
+    	try{
+		Sqlite::SQLite sq("Taro_Config");
+		std::tie(bgpid, interface, timeout, bgppass, enable_pass, bgp_ip, bgp_port, mainip, mainport) = sq.get_config();
+    		if(bgpid != 0)
+			break;
+	  }catch(...){
+        	boost::this_thread::sleep_for(boost::chrono::milliseconds(std::rand()%1000));
+	  }
+    }
+   
+    boost::asio::io_context io_context_;
+    std::shared_ptr<Client> _client;
+    try{
+    	_client = std::make_shared<Client>(io_context_ , mainip, mainport);
+    }catch(...){
+	std::cout<<"finally caught me!"<<std::endl;
     }
 
-    boost::asio::io_context io_context_;
-    std::shared_ptr<Client> _client = std::make_shared<Client>(io_context_ , mainip, mainport);
-    int id;//, timeout = 5;
+    int id;
     if(input_p[0] == "ID"){
 	    id = std::atoi(input_p[1].c_str());
     }
@@ -186,18 +208,13 @@ int main(int argc, char ** argv){
 
     std::vector<std::string>::iterator b,e;
     b = input_p.begin();
-    e = b; e++; e++;
+    e = b; ++e; ++e;
     input_p.erase(b, e);
 
     std::vector<std::string>::iterator it = std::find(input_p.begin(), input_p.end(), "-d");
     std::string str = *(++it);
     uint32_t dst_addr = boost::asio::ip::make_address_v4(str.substr(0, str.find("/"))).to_ulong();
     std::shared_ptr<Bgp> bgp = std::make_shared<Bgp>(io_context_ ,dst_addr,bgppass, enable_pass, bgp_ip, bgpid, bgp_port);
-    if(!bgp->announce()){
-	    end_process(_client, id, 0,0);
-	    std::cerr<<"Couldn't annouce ip to bgpd."<<std::endl;
-	    return 1;
-    }
 
     std::string _proto = input_p[0];
     input_p.erase(input_p.begin());
@@ -218,7 +235,7 @@ int main(int argc, char ** argv){
     std::shared_ptr<IpRule> rule;
     boost::thread_group threads;
     boost::asio::io_service io_srv;
-    boost::asio::signal_set signals(io_srv, SIGINT,SIGTERM);
+    boost::asio::signal_set signals(io_srv, SIGINT,SIGTERM,SIGPIPE);
     signals.async_wait(boost::bind(&boost::asio::io_service::stop, &io_srv));
     uint8_t proto_;
     try{
@@ -242,6 +259,7 @@ int main(int argc, char ** argv){
     }
     catch (ParserException& e){
         std::cerr<<e.what()<<std::endl;
+	end_process(_client, id, 0, 0, {});
         return 1;
     }
     
@@ -255,10 +273,29 @@ int main(int argc, char ** argv){
         std::cerr<<e.what()<<std::endl;
         return 1;
     }
-    //std::string interface="ens160";   ///////////////////////should change in the future
-    std::srand(std::time(nullptr));
-   // int id = 1;// std::rand()%10000;
-    std::shared_ptr<Iptable> iptable_ = std::make_shared<Iptable>(interface, std::to_string(id),proto_, input_p );
+    
+    std::shared_ptr<Iptable> iptable_;
+    try{
+    	iptable_ = std::make_shared<Iptable>(interface, std::to_string(id), proto_, input_p );
+    }catch(std::exception& e){
+	std::cerr<<e.what()<<" EXIT_IPT: "<<id<<std::endl;
+	//iptable_->remove_all();
+	end_process(_client, id, 0, 0, {});
+	return 1;
+    }
+
+    for(;;){
+	 try{
+	    if(!bgp->announce())
+            	boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+	    else
+		break;
+
+	 }catch(std::exception& e){
+		std::cerr<<e.what()<<std::endl;
+	 }
+    }
+
     AF_packet af_rcv(interface, threads, threads_anomly, *anomly, proto_);
     try{
         af_rcv.start();
@@ -278,7 +315,5 @@ int main(int argc, char ** argv){
     io_srv.run_one();
     threads.interrupt_all(); 
     threads.join_all();    
-
-    //unlink(argv[1]);
-    f.close();
+    exit(EXIT_SUCCESS);
    }

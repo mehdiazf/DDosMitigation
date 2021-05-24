@@ -19,18 +19,6 @@
 #include <boost/tokenizer.hpp>
 #include "exceptions.hpp"
 
-
-bool is_file_exist(const std::string& file_name);
-/*
- Checks if executable file
-*/
-bool is_executable(const std::string& file_name);
-/*
- Formats a string to a specific length to align the output
- @param s: string
- @param len: minimum length of the output string
-*/
-std::string format_len(const std::string& s, unsigned int len);
 /*
  Divides the input string into elements based on separator and forms
  Result in vector <string>

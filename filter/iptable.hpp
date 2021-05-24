@@ -24,14 +24,20 @@ extern "C"{
 class Iptable{
 
 public:
-    Iptable(std::string inface, std::string id_, unsigned int pro, std::vector<std::string>& input );
-    bool  add_rule(token &t);
-    ipt_counters get_counters();
+    explicit Iptable(const std::string& inface, const  std::string& id_, unsigned int pro, std::vector<std::string>& input );
     ~Iptable();
+    bool  add_rule(token &t);
+    bool remove_all();
+    ipt_counters get_counters();
 
 private:
+    bool stat1;
+    bool stat2;
     bool  add_chain();
     bool insert_rule(bool match_rule);	
+    bool remove_chain();
+    bool remove_pre_chain();
+    bool remove_rule_chain();
     void clean_l3();
     void clean_tcp(struct ipt_tcp * tcp_);
     void clean_udp(struct ipt_udp * udp_);
@@ -70,6 +76,7 @@ private:
     Std_rule rl;     
     size_t m_size;
     boost::program_options::options_description _opt;
+
 };
 
 

@@ -2,31 +2,6 @@
 
 #include "functions.hpp"
 
-
-bool is_file_exist(const std::string& file_name)
-{
-    struct stat st;
-    return (stat (file_name.c_str(), &st) == 0);
-}
-
-bool is_executable(const std::string& file_name)
-{
-    struct stat st;
-    if(stat(file_name.c_str(), &st) < 0)
-        return false;
-    if ((st.st_mode & S_IXUSR) != 0)
-        return true;
-    return false;
-}
-
-std::string format_len(const std::string& s, unsigned int len)
-{
-    std::string s_format = "%-"
-                        + to_string(len)
-                        + "s";
-    return boost::str(boost::format(s_format) % s);
-}
-
 std::vector<std::string> tokenize(const std::string& input, const boost::char_separator<char>& separator)
 {
     // Tokenize the intput.

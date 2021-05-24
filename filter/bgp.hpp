@@ -20,8 +20,8 @@ class Bgp: public Client{
 
 public:
 
-	explicit Bgp(boost::asio::io_context& io_context_, std::string p, std::string e_p, std::string ip , unsigned int r_id,unsigned short port);
-	explicit Bgp(boost::asio::io_context& io_context_, uint32_t dst_addr,std::string p, std::string e_p, std::string ip , unsigned int r_id,unsigned short port);
+	explicit Bgp(boost::asio::io_context& io_context_, std::string& p, std::string& e_p, std::string& ip , unsigned int r_id,unsigned short port);
+	explicit Bgp(boost::asio::io_context& io_context_, uint32_t dst_addr,std::string& p, std::string& e_p, std::string& ip , unsigned int r_id,unsigned short port);
 	bool announce(uint32_t ip);
 	bool announce();
 	bool remove_announce(uint32_t ip);
@@ -31,7 +31,7 @@ public:
 private:
 
 	bool login();
-	bool send_request(uint32_t ip, std::string str);
+	bool send_request(uint32_t ip, const std::string& str);
 	bool match_string(std::string, std::string);
 
 	const std::string pass;

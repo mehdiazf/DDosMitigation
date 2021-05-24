@@ -36,27 +36,27 @@ class SQLite{
 
 public:
 
-	explicit SQLite(std::string tb);
-	bool insert_record(std::string data, std::string thr="",
-		       std::string stime="", std::string stat="");
-	bool insert_record(int id=-1 ,std::string data="");
+	explicit SQLite(const std::string& tb);
+	bool insert_record(const std::string& data, const std::string& thr="",
+		       const std::string& stime="", const std::string& stat="") noexcept;
+	bool insert_record(int id=-1 , const std::string& data="");
 	bool update_record(int id=-1, unsigned int b=0, unsigned int p=0,
-		       std::string etime="", std::string stat="");
+		       std::string etime="", std::string stat="") noexcept;
 	//return status of given anomaly using id
-	std::string status(int id=-1); 
+	std::string status(int id=-1) noexcept; 
 	//if this animaly considering ip,proto,stat exsit?
-	bool status(std::string rule, std::string stat);	
-	std::vector<std::string> select_all_records();
-	unsigned int get_last_id();
+	bool status(const std::string& rule, const std::string& stat) noexcept;
+	std::vector<std::string> select_all_records() noexcept;
+	unsigned int get_last_id() noexcept;
 	/* get config*/
 	std::tuple<int, std::string, int,
 		std::string, std::string,
 		std::string, int, std::string, int> get_config();
 	// when the main process spawn, it will update possible undone status
-	std::vector<int> pre_check();
-	bool set_config(int bgpid, std::string iface, int tout,
-		    std::string bpass, std::string enpass,
-		    std::string bip, int port, std::string mip, int mport );
+	std::vector<int> pre_check() noexcept;
+	bool set_config(int bgpid, std::string& iface, int tout,
+		    std::string& bpass, std::string& enpass,
+		    std::string& bip, int port, std::string& mip, int mport ) noexcept;
 	/* For initializing, as table has only one row for config*/
 	static bool conf;
 	static bool init_database;

@@ -34,8 +34,9 @@ class token{
     
 public:
     token():token(0, ""){}    
-    token(uint32_t x, std::string y):val(x), type(y){}    
+    token(uint32_t x, const std::string& y):val(x), type(y){}    
     token(const token& oth):val(oth.val), type(oth.type){}
+    //token& operator=(const token& oth){val=oth.val; type=oth.type; return *this;}
     uint32_t val;    
     std::string type;
                     
@@ -66,7 +67,7 @@ class Filter  {
 public:
     Filter();
     Filter(const Filter& f);
-    Filter(std::string _type, unsigned int r);
+    Filter(const std::string& _type, unsigned int r);
     Filter& operator+=(Filter& oth);
     Filter& operator=(Filter& oth);
     bool _stat();

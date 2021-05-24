@@ -1,6 +1,11 @@
 #include "iptable.hpp"
-
 Iptable::~Iptable(){
+
+	if(en !=NULL && stat1 && stat2){
+		delete en; delete m;
+	}
+}
+bool Iptable::remove_pre_chain(){
 
 	rl.en.ip.src.s_addr = 0;
         rl.en.ip.smsk.s_addr = 0x0;
@@ -8,29 +13,66 @@ Iptable::~Iptable(){
 	int i;
 	const char * t = table.c_str();
 	const std::string pre("PREROUTING");
-	h= iptc_init(t);
-	
-	for(e = iptc_first_rule(pre.c_str(), h), i =0; e; e = iptc_next_rule(e, h), i++ ){
-		if(chn_name == static_cast<std::string>(iptc_get_target(e, h)))
-			break;
-	}
-	iptc_delete_num_entry(pre.c_str(), i, h);
-	iptc_commit(h);
-	iptc_free(h);
 
-        h = iptc_init(t);
-	iptc_flush_entries(chain,h);
-	iptc_delete_chain(chain,h);
-	iptc_commit(h);
-	iptc_free(h);
-	if(en !=NULL){
-		delete en; delete m;
+	if(!stat1){
+		h= iptc_init(t);	
+		if(h!=nullptr){
+			for(e = iptc_first_rule(pre.c_str(), h), i =0; e; e = iptc_next_rule(e, h), i++ ){
+				if(chn_name == static_cast<std::string>(iptc_get_target(e, h)))
+					break;
+			}
+
+			stat1 = iptc_delete_num_entry(pre.c_str(), i, h);
+			if(stat1)
+				stat1 = iptc_commit(h);
+			iptc_free(h);
+		}
 	}
-	
+	return stat1;
 
 }
-Iptable::Iptable(std::string inface, std::string id_, unsigned int prot_, std::vector<std::string>& input):iface(inface),table("raw"),
-	 id(id_), proto(prot_),chn_name("ANOMALY__"), tcp_flgs(std::make_pair(0x0, 0x0)), icmp_type(-1)
+bool Iptable::remove_rule_chain(){
+
+	const char * t = table.c_str();
+	bool x = false;
+	h = iptc_init(t);
+	if(h!=nullptr){
+		iptc_flush_entries(chain,h);
+		x = iptc_commit(h);
+		iptc_free(h);
+	}
+	return x;
+}
+bool Iptable::remove_chain(){
+
+	remove_rule_chain();
+	const char * t = table.c_str();
+	if(!stat2){
+		h = iptc_init(t);
+		if(h!=nullptr){
+			stat2 = iptc_delete_chain(chain,h);
+			if(stat2)
+				stat2 = iptc_commit(h);
+			iptc_free(h);
+		}
+	}
+	return stat2;
+}
+bool Iptable::remove_all(){
+
+	remove_pre_chain();
+	remove_chain();
+	return (stat1 && stat2);
+
+}
+Iptable::Iptable(const std::string& inface, const std::string& id_, unsigned int prot_,
+	       	std::vector<std::string>& input):
+		stat1(true), stat2(true),
+		iface(inface),table("raw"),
+	 	id(id_), proto(prot_),
+		chn_name("ANOMALY__"), 
+		tcp_flgs(std::make_pair(0x0, 0x0)),
+	       	icmp_type(-1)
 		
 {
 	add_options(input);
@@ -59,8 +101,10 @@ Iptable::Iptable(std::string inface, std::string id_, unsigned int prot_, std::v
 		m = (struct ipt_entry_match *) ::operator new(m_size, std::nothrow);
 		strncpy(m->u.user.name, "icmp", IPT_FUNCTION_MAXNAMELEN);
 	}
-	else
+	else{
+		remove_all();
 		throw std::runtime_error("protocol is not vaild.");
+	}
 
 	if(m_size != 0 && m != NULL ){
 		m->u.match_size = m_size;
@@ -87,8 +131,10 @@ Iptable::Iptable(std::string inface, std::string id_, unsigned int prot_, std::v
 		set_chain_rule();
 
 	}
-	else
+	else{
+		remove_all();
 		throw std::runtime_error("Couldn't initialize iptables entry.");
+	}
 	
 
 }
@@ -152,7 +198,7 @@ bool Iptable::add_chain(){
                 throw std::runtime_error(iptc_strerror(errno));
 	}
 	iptc_free(h);
-
+	stat2 = false;
 	return true;	
 		
 }
@@ -161,24 +207,26 @@ bool Iptable::set_chain_rule(){
 	if(!return_rule())
 		return false;
 
-	int c=1;
 	const char * tt = table.c_str();
         h = iptc_init(tt);
 	rl.en.ip.dst.s_addr = dst_addr;
 	rl.en.ip.dmsk.s_addr = 0xFFFFFFFF;
 	strncpy(rl.target.target.u.user.name, chn_name.c_str(), IPT_FUNCTION_MAXNAMELEN); 
-	c = iptc_append_entry("PREROUTING", &rl.en, h);
+	int c = iptc_append_entry("PREROUTING", &rl.en, h);
 	if(!c ){   
                 iptc_free(h);
+		remove_all();
                 throw std::runtime_error(iptc_strerror(errno));
         } 
 	int  x =iptc_commit(h);
 	if(!x){
 		iptc_free(h);
+		remove_all();
             	throw std::runtime_error(iptc_strerror(errno));
 	}	
 	iptc_free(h);
 	strncpy(rl.target.target.u.user.name, IPTC_LABEL_DROP, IPT_FUNCTION_MAXNAMELEN); 
+	stat1 = false; //when delete entry
 	return x;
 }
 ipt_counters Iptable::get_counters(){
@@ -199,19 +247,20 @@ ipt_counters Iptable::get_counters(){
 	return res;
 }
 bool Iptable::return_rule(){
-	int c=1;
 	
 	const char * tt = table.c_str();
         h = iptc_init(tt);
 	strncpy(rl.target.target.u.user.name, IPTC_LABEL_RETURN, IPT_FUNCTION_MAXNAMELEN);
-	c = iptc_append_entry(chain, &rl.en, h);
+	int c = iptc_append_entry(chain, &rl.en, h);
 	if(!c ){   
                 iptc_free(h);
+		remove_all();
                 throw std::runtime_error(iptc_strerror(errno));
         } 
 	int  x =iptc_commit(h);
 	if(!x){
 		iptc_free(h);
+		remove_all();
             	throw std::runtime_error(iptc_strerror(errno));
 	}	
 	iptc_free(h);

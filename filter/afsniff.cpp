@@ -1,6 +1,6 @@
 #include "afsniff.hpp"
 
-AF_packet::AF_packet(std::string ifname,boost::thread_group & grp,
+AF_packet::AF_packet(const std::string& ifname,boost::thread_group & grp,
             std::vector<std::shared_ptr<Anomaly>> & anom,
         const Anomaly & anoml, uint8_t p ):proto(p),ifacename(ifname),
         thread_(grp),thread_anomaly(anom),anomaly(anoml),num_cpu_(1),
