@@ -20,7 +20,7 @@ You need to place taro.conf in /etc/ddosdetector.conf, chage values as desired.
 You need also create rules file (/etc/ddosdetector.rules)
 The formats are discussed as bellow.
 
-<protocol> -d <destination-ip> --pps-th <packet-threshold> --bps-th <byte-threshold> [--tcp-flag R:1, S:0] --dport <destination-port> --filter <type:ratio>
+\<protocol\> -d \<destination-ip\> --pps-th \<packet-threshold\> --bps-th \<byte-threshold\> [--tcp-flag R:1, S:0] --dport \<destination-port\> --filter \<type:ratio\>
   
  TCP -d 192.168.1.142/32 --pps-th 7p --tcp-flag R:1 --dport 220-500 --filter src_ip:1
  
