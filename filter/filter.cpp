@@ -64,7 +64,7 @@ void watcher(std::vector<std::shared_ptr<Anomaly>> & threads_collect,
     
 }
 //inform main about terminating
-bool end_process(std::shared_ptr<Client>& _client, const int id, const int byte, const int packet, const std::vector<std::string>& rule_list){
+bool end_process(std::shared_ptr<Client>& _client, const int id, const int byte, const int packet, const std::vector<std::string>& rule_list, uint32_t dst_addr){
 
 	for(;;)
 	{
@@ -72,6 +72,7 @@ bool end_process(std::shared_ptr<Client>& _client, const int id, const int byte,
 			if(!_client->connect())
 				return false;
 			std::string data = std::string(END_PHRASE) + " " + std::to_string(id) + 
+				" " + std::to_string(dst_addr) +
 				" " + std::to_string(byte) + " " + std::to_string(packet) + " ";
 			for(auto& x : rule_list)
 				data+=x + " ";
@@ -97,7 +98,7 @@ void task_runner(std::shared_ptr<ts_queue<token>> task, int id, int timeout,
 
     std::chrono::high_resolution_clock::time_point _last = std::chrono::high_resolution_clock::now();
     std::chrono::high_resolution_clock::time_point _now;
-    bool bgp_stat = true, try_ = false;
+    bool try_ = false;
 
     std::vector<std::string> rule_list;
     std::string str;
@@ -114,49 +115,41 @@ void task_runner(std::shared_ptr<ts_queue<token>> task, int id, int timeout,
             		boost::this_thread::sleep_for(boost::chrono::milliseconds(std::rand()%1000));
 		try{
 			struct ipt_counters x = ipt->get_counters();
-			if(!bgp_stat)
+			if(!try_)
+				try_ = end_process(_client, id, x.bcnt, x.pcnt, rule_list, dst_addr);
+			if(try_)
 			{
-				if(!try_)
-					try_ = end_process(_client, id, x.bcnt, x.pcnt, rule_list);
-				if(try_)
-				{
-					if(ipt->remove_all())
-						kill(getpid(), SIGTERM);
-				}
-			}
-			else
-			{
-				bgp->remove_announce();
-				bgp_stat = bgp->status();
+				if(ipt->remove_all())
+					kill(getpid(), SIGTERM);
 			}
 		}catch(...){
 			continue;
 		}
 	}
-
-	if(bgp_stat && task->wait_and_pop(tmp, 1000))
+	else
 	{
-		_last = _now;
-		if(tmp.type.find("ip") != std::string::npos)
-			str = tmp.type + ":" + boost::asio::ip::make_address_v4(tmp.val).to_string();
-		else
-			str = tmp.type + ":" + std::to_string(tmp.val);
-
-		try
+		if((try_ == false) && task->wait_and_pop(tmp, 1000))
 		{
-			if(std::find( rule_list.begin(), rule_list.end(), str) == rule_list.end())
-			{       
-				ipt->add_rule(tmp); 
-				rule_list.push_back(str);
-			}
+			_last = _now;
+			if(tmp.type.find("ip") != std::string::npos)
+				str = tmp.type + ":" + boost::asio::ip::make_address_v4(tmp.val).to_string();
+			else
+				str = tmp.type + ":" + std::to_string(tmp.val);
 
-		}catch(std::exception& e)
-		{
-			std::cout<<e.what()<<std::endl;
+			try
+			{
+				if(std::find( rule_list.begin(), rule_list.end(), str) == rule_list.end())
+				{       
+					ipt->add_rule(tmp); 
+					rule_list.push_back(str);
+				}
+
+			}catch(std::exception& e)
+			{
+				std::cout<<e.what()<<std::endl;
+			}   
 		}
-    
 	}
-
    }
 
 }
@@ -264,7 +257,7 @@ int main(int argc, char ** argv){
     }
     catch (ParserException& e){
         std::cerr<<e.what()<<std::endl;
-	end_process(_client, id, 0, 0, {});
+	end_process(_client, id, 0, 0, {}, 0);
         return 1;
     }
     
@@ -285,7 +278,7 @@ int main(int argc, char ** argv){
     }catch(std::exception& e){
 	std::cerr<<e.what()<<" EXIT_IPT: "<<id<<std::endl;
 	//iptable_->remove_all();
-	end_process(_client, id, 0, 0, {});
+	end_process(_client, id, 0, 0, {}, 0);
 	return 1;
     }
 

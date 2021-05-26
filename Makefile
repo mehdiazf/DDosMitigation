@@ -22,7 +22,7 @@ $(MAKE): $(SOURCE)  $(FILTER_DIR)/Makefile | $(OBJ)
 $(OBJ):
 	+mkdir $(OBJ)
 
-Supervisor: $(OBJ)/sqlite.o $(OBJ)/functions.o $(OBJ)/exceptions.o main.o
+Supervisor: $(OBJ)/sqlite.o $(OBJ)/functions.o $(OBJ)/exceptions.o $(OBJ)/bgp.o $(OBJ)/client.o  main.o
 	$(CXX) $(CPPFLAGS) $^ -o $@ $(LDFLAGS)
 
 main.o: broker.cpp

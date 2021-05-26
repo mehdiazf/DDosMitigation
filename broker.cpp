@@ -30,9 +30,15 @@
 
 #include "filter/functions.hpp"
 #include "filter/sqlite.hpp"
+#include "filter/bgp.hpp"
 
 #define MAX_LINE 256
 
+using namespace BGP;
+//bgp inventory map
+std::map<uint32_t, unsigned int> bgp_inv;
+boost::asio::io_context io_context_;
+std::shared_ptr<Bgp> bgp;
 
 void usage(void);
 bool tcplisten(const char *,const char *, struct event_base *);
@@ -40,7 +46,7 @@ void read_cb(struct bufferevent *, void *);
 void error_cb(struct bufferevent *, short, void *);
 void accept_cb(evutil_socket_t, short, void *);
 std::string not_in_db(const std::string&);
-bool update_db(const std::string&);
+bool update_db(const std::string&, uint32_t&);
 bool load_config(std::string&, std::string&);
 bool db_pre_check();
 std::string get_time();
@@ -86,8 +92,8 @@ main(int argc, char **argv)
 		return 1;
 	}
 	/* daemonise */
-	if(!dflag)
-		daemon(1, 0);
+	//if(!dflag)
+	//	daemon(1, 0);
 	
 	setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -158,6 +164,8 @@ load_config(std::string& port, std::string& ip){
 			<<std::endl<<std::endl;
 		return false;
 	}
+
+        bgp = std::make_shared<Bgp>(io_context_, bpass, enpass, _ip, bgpid, _port);
 	using namespace Sqlite;
 	SQLite sq("Taro_Config");
 	return sq.set_config(bgpid, iface, timeout, bpass, enpass, _ip, _port, ip, std::atoi(port.c_str()));
@@ -282,6 +290,9 @@ not_in_db(const std::string& rule){
 
 			int id = sq.get_last_id();
 			dtmp = "ID " + std::to_string(id) + " " + tmp;
+    			uint32_t dip = boost::asio::ip::make_address_v4(ip.substr(0, ip.find("/"))).to_ulong();
+			bgp_inv[dip]++;
+			std::cout<<ip<<" : "<<bgp_inv[dip]<<std::endl;
 			return dtmp;
 		}
 		else
@@ -314,9 +325,12 @@ read_cb(struct bufferevent *bev, void *ctx)
 
 		std::string prule;
 		if((prule = not_in_db(rules)) != "" ){
-			if (fork() == 0) {
+			io_context_.notify_fork(boost::asio::execution_context::fork_prepare);
+			if (fork() == 0)
+			{
+				io_context_.~io_context();
 				if(fork() == 0 ){
-					daemon(1,0);
+					//daemon(1,0);
 					
 					int fd = open("/tmp",  O_EXCL | O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
 					if(fd<0){
@@ -330,16 +344,43 @@ read_cb(struct bufferevent *bev, void *ctx)
 				}
 				else
 					_exit(0);
-			} else { /* parent mission */
+			}else { /* parent mission */
+				io_context_.notify_fork(boost::asio::io_context::fork_parent);
 				evbuffer_add(output, "OK!\n", 5);
 				wait(nullptr);
 			}
 		}
 	}
-	else if (strcmp(req_type, "FINISH") == 0) {
+	else if (strcmp(req_type, "FINISH") == 0) 
+	{
 		/* update databse */
-		if(update_db(rules))
+		uint32_t ip;
+		if(update_db(rules, ip))
+		{
+			//for incomplete process creation
+			if(ip == 0)
+				evbuffer_add(output, "OK!\n",5);
+
+			bgp_inv[ip]--;
+			if(bgp_inv[ip] == 0)
+			{
+				bgp_inv.erase(ip);
+				for(;;)
+				{
+					 try
+					 {
+					    bgp->remove_announce(ip);
+					    if(!bgp->status(ip))
+						    break;
+					 }catch(std::exception& e)
+					 {
+						std::cerr<<e.what()<<std::endl;
+					 }
+					 boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+				}
+			}
 			evbuffer_add(output, "OK!\n",5);
+		}
 		else
 			evbuffer_add(output, "WRONG!\n",8);
 	}
@@ -352,15 +393,16 @@ read_cb(struct bufferevent *bev, void *ctx)
 	free(line);
 	// bufferevent_free(bev);
 }
-bool update_db(const std::string& data){
+bool update_db(const std::string& data, uint32_t& ip_){
 
 	std::vector<std::string> prs_data = space_tokenize(data);
 	if(prs_data.size() >= 3){
 		int id = std::atoi(prs_data[0].c_str());
-		int bytes = std::atoi(prs_data[1].c_str());
-		int packets = std::atoi(prs_data[2].c_str());
+		ip_ = std::atoi(prs_data[1].c_str());
+		int bytes = std::atoi(prs_data[2].c_str());
+		int packets = std::atoi(prs_data[3].c_str());
 
-		for(unsigned int i=3; i< prs_data.size(); i++){
+		for(unsigned int i=4; i< prs_data.size(); i++){
 			try{
 				Sqlite::SQLite df("Taro_Filter");
 				if(!df.insert_record(id, prs_data[i])){
