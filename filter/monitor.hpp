@@ -15,8 +15,12 @@
 #include <boost/asio/ip/address_v4.hpp>
 
 #include "../lib/queue.hpp"
+//max number for selecting random trigger, avoiding queue clogging
 #define MAX 1000000
 
+/*
+ * class that holds packet/byte counter
+*/
 class Counter
 {
  public:
@@ -29,7 +33,9 @@ class Counter
     uint64_t bps;    
     
 };
-
+/*
+ * class for triggering action (blocking)
+*/
 class token{
     
 public:
@@ -39,28 +45,13 @@ public:
     //token& operator=(const token& oth){val=oth.val; type=oth.type; return *this;}
     uint32_t val;    
     std::string type;
-                    
 };
-
-/*class templatefilter{
-
-public:
-    templatefilter();
-    templatefilter(std::string _type);
-    bool _stat();
-    virtual void increase(uint32_t ,const unsigned int ) =0;
-    virtual void increase(uint16_t ,const unsigned int ) =0;
-    virtual void increase(uint8_t ,const unsigned int ) =0;
-    virtual void increase(std::string ,const unsigned int ) =0;
-private:
-    
-    bool _enable;
-    std::string type;
-
-    
-};
+/*
+ * class that holds data for each type of blocking for example for src_ip,
+ * caculate threshold and generate token for iptable
+ * @param: filter_: a map which holds counter for each type of blocking item
+ *
 */
-
 template<typename T>
 class Filter  {
   
@@ -89,7 +80,10 @@ private:
     std::map<T,Counter> filter_;
     
 };
-
+/*
+ * class that holds all kinds of blocking option including: src_ip, src_port, dst_ip, dst_port, icmp_type and icmp_code
+ * @param: rule_: a map of blocking option and its corresponding filter
+*/
 class Monitor {
     
 public:   
@@ -109,9 +103,5 @@ private:
     mutable boost::shared_mutex m_;
     std::map<std::string, std::unique_ptr<Filter<uint32_t>>> rule_;
     uint8_t proto;
-    
-    
 };
-
-
 #endif

@@ -3,10 +3,13 @@
 
 //class tcpflag
 tcp_flags::tcp_flags()
-    : enable(false), bits_(std::string("000000")),
-    mask_(std::string("000000")) {}
+    :enable(false), 
+     bits_(std::string("000000")),
+     mask_(std::string("000000")){}
 tcp_flags::tcp_flags(const std::pair<std::bitset<6>, std::bitset<6>>& flags)
-    : enable(true), bits_(flags.first), mask_(flags.second) {}
+    :enable(true),
+     bits_(flags.first),
+     mask_(flags.second){}
 bool tcp_flags::in_this(const std::bitset<6>& flags) const
 {
     if((flags&mask_) == bits_)
@@ -101,9 +104,15 @@ std::string NumComparable<T>::to_string() const
 }
 
 //class ipv4
-IpRule::IpRule(uint8_t proto):protocol(proto), pps_trigger(0), bps_trigger(0){}
-IpRule::IpRule(uint8_t proto,const std::vector<std::string>& tkn_rule):
-    protocol(proto), pps_trigger(0), bps_trigger(0),tkn_(tkn_rule){}
+IpRule::IpRule(uint8_t proto)
+	:protocol(proto),
+       	 pps_trigger(0),
+	 bps_trigger(0){}
+IpRule::IpRule(uint8_t proto,const std::vector<std::string>& tkn_rule)
+	:protocol(proto),
+	pps_trigger(0),
+	bps_trigger(0),
+	tkn_(tkn_rule){}
 void IpRule::ip_rule_parse(const boost::program_options::variables_map& vm){
  
     if (vm.count("srcip")) {
@@ -112,7 +121,6 @@ void IpRule::ip_rule_parse(const boost::program_options::variables_map& vm){
     if (vm.count("dstip")) {
 	std::pair<uint32_t,uint32_t> tmp = parser::range_from_ip_string(vm["dstip"].as<std::string>());
         dst_addr = tmp.first; // boost::asio::ip::make_address_v4(tmp.first).to_ulong();
-//	std::cout<<tmp.first<<" "<<dst_addr<<std::endl;
     }
     
     if (vm.count("pps-th")) {
@@ -124,14 +132,8 @@ void IpRule::ip_rule_parse(const boost::program_options::variables_map& vm){
    
     if(pps_trigger == 0 && bps_trigger == 0)
         throw ParserException("pps or bps trigger will be set");
-    
-    
 }
 
-/*uint32_t IPRule::get_addr(){
-    return dst_addr;   
-}
-*/
 //class tcp
 Tcp::Tcp():IpRule(6){}
 Tcp::Tcp(const std::vector<std::string>& tkn_rule):IpRule(6, tkn_rule){
@@ -184,8 +186,7 @@ void Tcp::parse(){
     }
     
 }
-bool Tcp::check_packet(const void * hdr,
-           const uint32_t s_addr,const uint32_t d_addr) const{
+bool Tcp::check_packet(const void * hdr, const uint32_t s_addr, const uint32_t d_addr) const{
     
     const struct tcphdr * tcp_hdr = (struct tcphdr *) hdr;
     if(!src_addr.in_this(s_addr)) // check source ip address
@@ -287,11 +288,9 @@ void Udp::parse(){
     if (vm.count("hlen")) {
         len = parser::numcomp_from_string<uint16_t>(vm["hlen"].as<std::string>());
     }
-    
 }
 
-bool Udp::check_packet(const void * hdr,
-           const uint32_t s_addr,const uint32_t d_addr) const{
+bool Udp::check_packet(const void * hdr, const uint32_t s_addr, const uint32_t d_addr) const{
 
     const struct udphdr * udp_hdr = (struct udphdr *) hdr;
     
@@ -339,8 +338,6 @@ Icmp::Icmp(const std::vector<std::string>& tkn_rule):IpRule(6, tkn_rule){
         ("type", po::value<std::string>(), "check if ICMP packet type = or > or < arg")
         ("code", po::value<std::string>(), "check if ICMP packet code = or > or < arg")
     ;    
-
-
 }
 void Icmp::parse(){
     
@@ -356,8 +353,7 @@ void Icmp::parse(){
         code = parser::numcomp_from_string<uint8_t>(vm["code"].as<std::string>());
     }
 }
-bool Icmp::check_packet(const void * hdr,
-           const uint32_t s_addr,const uint32_t d_addr) const{
+bool Icmp::check_packet(const void * hdr, const uint32_t s_addr, const uint32_t d_addr) const{
     
     const struct icmphdr * icmp_hdr = (struct icmphdr *) hdr;
       // L3 header check
@@ -382,11 +378,7 @@ bool Icmp::check_packet(const void * hdr,
         return false;
 
     return true;
-
-
 }
 template class NumRange<uint16_t>;
 template class NumRange<uint32_t>;
 template class NumRange<uint8_t>;
-
-

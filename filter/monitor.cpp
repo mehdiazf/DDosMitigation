@@ -4,8 +4,13 @@
 #include "monitor.hpp"
 
 //class Counter
-Counter::Counter():count_packets(0),count_bytes(0),pps(0),bps(0){};    
+Counter::Counter()
+	:count_packets(0),
+	count_bytes(0),
+	pps(0),
+	bps(0){};    
 Counter& Counter::operator=(const Counter& other){
+
     count_packets=other.count_packets;
     count_bytes=other.count_bytes;
     pps=other.pps;
@@ -17,18 +22,15 @@ Counter::Counter(const Counter & other){
     count_packets=other.count_packets;
     count_bytes=other.count_bytes; 
     pps=other.pps;
-    bps=other.bps;    
-            
+    bps=other.bps;        
 }
 
 //class Filter
-/*templatefilter::templatefilter():_enable(false),type(""){}
-templatefilter::templatefilter(std::string _type):_enable(true),type(_type){}
-bool templatefilter::_stat(){
-    return _enable;
-}*/
 template <typename T>
-Filter<T>::Filter():_enable(false),type(""),ratio(1){}
+Filter<T>::Filter()
+	:_enable(false),
+	type(""),
+	ratio(1){}
 template <typename T>
 Filter<T>::Filter(const Filter & f){
  
@@ -37,13 +39,17 @@ Filter<T>::Filter(const Filter & f){
     ratio = f.ratio;
     type = f.type;
     last_update_ = f.last_update_;
-    
 }
 template <typename T>
-Filter<T>::Filter(const std::string& _type, unsigned int r):_enable(true),type(_type),
-        ratio(r),last_update_(std::chrono::high_resolution_clock::now()),
-        token_time_(std::chrono::high_resolution_clock::now()), delay_(2),
-        sampling_(0,MAX), rnd_(1234){}
+Filter<T>::Filter(const std::string& _type, unsigned int r)
+	:_enable(true),
+	type(_type),
+        ratio(r),
+	last_update_(std::chrono::high_resolution_clock::now()),
+        token_time_(std::chrono::high_resolution_clock::now()),
+	delay_(2),
+        sampling_(0,MAX),
+	rnd_(1234){}
 template <class T>
 bool Filter<T>::_stat(){
     
@@ -77,7 +83,6 @@ Filter<T>& Filter<T>::operator=(Filter& oth){
     oth.filter_.clear();	
     filter_.clear();	
     return *this;
-    
 }
 template <typename T>
 void Filter<T>::calc_data(const Filter& fil){
@@ -89,8 +94,6 @@ void Filter<T>::calc_data(const Filter& fil){
         last_update_ - fil.last_update_).count();
         it.second.pps= round(((it.second.count_packets)/delta_time)*1000);
         it.second.bps= round(((it.second.count_bytes )/delta_time)*1000);
-    	//std::cout<<std::to_string(it.second.count_packets)
-	//	<<":"<<delta_time<<":"<<std::to_string(it.second.pps)<<std::endl;
     }
     
 }
@@ -110,7 +113,7 @@ std::string Filter<T>::get_info(uint32_t val){
     return " ";
             
 }
-///push anomaly randomly to avoid queue exhuastion
+///push anomaly randomly to avoid queue clogging
 template <typename T>	
 void Filter<T>::check_triggers(uint32_t _pps, uint32_t _bps, std::shared_ptr<ts_queue<token>> & l){
            
@@ -138,9 +141,10 @@ void Filter<T>::check_triggers(uint32_t _pps, uint32_t _bps, std::shared_ptr<ts_
         }        
     }
 }
-//class Monitor
 
-Monitor::Monitor(uint8_t _proto): proto(_proto){}
+//class Monitor
+Monitor::Monitor(uint8_t _proto)
+	:proto(_proto){}
 Monitor::Monitor(const Monitor &oth){
     
     boost::lock(m_, oth.m_);
@@ -151,7 +155,6 @@ Monitor::Monitor(const Monitor &oth){
     for(auto& x: oth.rule_){        
         rule_.insert(make_filter(x.first, oth.proto, x.second->ratio));             
     }
-        
 }
 void Monitor::calc_data(const Monitor &mon){
     
@@ -163,7 +166,6 @@ void Monitor::calc_data(const Monitor &mon){
             it.second->calc_data(*mon.rule_.at(it.first));
         }
     }
-    
 }
 void Monitor::check_triggers(uint32_t pps, uint32_t bps,std::shared_ptr<ts_queue<token>>& l){
  
@@ -171,7 +173,6 @@ void Monitor::check_triggers(uint32_t pps, uint32_t bps,std::shared_ptr<ts_queue
     for(auto& it: rule_){
         it.second->check_triggers(pps, bps, l);                
     }
-    
 }
 void Monitor::add_rule(std::string _type, unsigned int r){
     
@@ -202,13 +203,10 @@ Monitor& Monitor::operator=(Monitor& oth){
                 *rule_[it.first]=*it.second;
             }
         }
-      
     }
     return *this;
-    
 }
-void Monitor::increase(const void* hdr, unsigned int len,
-        const uint32_t s_addr, const uint32_t d_addr){
+void Monitor::increase(const void* hdr, unsigned int len, const uint32_t s_addr, const uint32_t d_addr){
     
     boost::lock_guard<boost::shared_mutex> guard(m_);
     for(auto& it: rule_){
@@ -246,7 +244,6 @@ void Monitor::increase(const void* hdr, unsigned int len,
             #endif        
                     it.second->increase(h_sport,len);
                 }
-               
             }
                 
             if(it.first == "dst_port"){
@@ -270,7 +267,6 @@ void Monitor::increase(const void* hdr, unsigned int len,
             #endif        
                     it.second->increase(h_dport,len);
                 }
-                
             }
             
             ///ICMP  
@@ -292,15 +288,10 @@ void Monitor::increase(const void* hdr, unsigned int len,
                     uint8_t h_code = icmp_hdr->code;
             #endif
                     it.second->increase(h_code,len);
-                }  
-                
-            }
-            
-                            
+                }     
+            }           
         }
-        
-    }
-
+}
 std::pair<std::string, std::unique_ptr<Filter<uint32_t>>> Monitor::make_filter(const std::string  _type , const uint8_t proto, unsigned int r){
     
     if( _type == "src_ip" || _type == "dst_ip")
@@ -312,8 +303,6 @@ std::pair<std::string, std::unique_ptr<Filter<uint32_t>>> Monitor::make_filter(c
 
     return std::make_pair(_type, std::make_unique<Filter<uint32_t>>("src_ip", r));
 }
-    
-
 
 template class Filter<uint32_t>;
 //template class Filter<uint16_t>;

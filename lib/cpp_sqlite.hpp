@@ -38,6 +38,7 @@ namespace sqlite{
 
 		};
 
+	//template fucntion to bind function argument
 	template<std::size_t Count>
 	class function_binder{
 
@@ -62,7 +63,6 @@ namespace sqlite{
 						Values&&... values){
 					function(std::move(values)...);
 				}
-
 
 	};
 	inline void except(const std::string& err){
@@ -159,8 +159,6 @@ namespace sqlite{
 				}
 				return ++_indx;
 			}
-
-
 	};
 
 	class database{
@@ -184,7 +182,6 @@ namespace sqlite{
 		private:
 			
 			std::shared_ptr<sqlite3> db;	
-
 	};
 
 	inline void db_get_col(binder& db, int indx, int& val){

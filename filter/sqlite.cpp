@@ -4,7 +4,6 @@ namespace Sqlite{
 
 using namespace std;
 
-
 SQLite::SQLite(const std::string& tb):db("Tarodb.db"), tb_name(tb){
 
 	if(init_database){
@@ -82,7 +81,6 @@ bool SQLite::insert_record(const std::string& data, const std::string& thr,
 		return true;
 	}
 	return false;
-
 }
 bool SQLite::insert_record(int id, const std::string& data){
 
@@ -134,7 +132,6 @@ bool SQLite::update_record(int id, unsigned int b, unsigned int p, std::string e
 		return true;
 	}
 	return false;
-
 }
 std::string SQLite::status(int id) noexcept{
 
@@ -206,7 +203,6 @@ bool SQLite::set_config(int bgpid, std::string& iface, int tout,std::string& bpa
 	}
 
 	return true;
-
 }
 std::tuple<int, std::string, int, std::string, std::string, std::string, int, std::string, int> SQLite::get_config(){
 
@@ -226,7 +222,6 @@ std::tuple<int, std::string, int, std::string, std::string, std::string, int, st
 		throw;
 	}
 	return {id, _if, t, _pass, en_pass, _ip, _port, mip, mport};
-
 }
 std::vector<int> SQLite::pre_check() noexcept{
 
@@ -280,7 +275,6 @@ std::vector<std::string> SQLite::select_all_records() noexcept{
 		return {};
 	}
 	return res;
-
 }
 
 }

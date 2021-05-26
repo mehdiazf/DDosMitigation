@@ -1,7 +1,6 @@
 #ifndef IP_HPP
 #define IP_HPP
 
-
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 #include <iostream>
@@ -36,8 +35,9 @@ private:
     // Comparison mask
     std::bitset<6> mask_;
 };
-
-
+/*
+ * template class for range data (ip, port)
+*/
 template<class T>
 class NumRange{
     public:
@@ -53,8 +53,10 @@ class NumRange{
         T start_;
         T end_;
         bool enable_;
-    
 };
+/*
+ * template class for conmparable value
+*/ 
 template<class T>
 class NumComparable{
     public:
@@ -72,7 +74,9 @@ class NumComparable{
         bool enable_;
     
 };
-
+/*
+ * class for L3 parmeters and general parameter like pps_trigger
+*/
 class IpRule{
     
 public:
@@ -91,7 +95,9 @@ public:
     uint32_t bps_trigger;
     std::vector<std::string> tkn_;
 };
-
+/*
+ * tcp class for L4 parameters
+*/
 class Tcp: public IpRule{
     
 public:
@@ -112,7 +118,9 @@ public:
     boost::program_options::options_description _opt;
     
 };
-
+/*
+ * udp class for L4 parameters
+*/
 class Udp: public IpRule{
         
 public:
@@ -128,7 +136,9 @@ public:
     boost::program_options::options_description _opt;
     
 };
-
+/*
+ * class for icmp parameters
+*/
 class Icmp: public IpRule{
     
 public:
@@ -142,7 +152,5 @@ public:
     NumComparable<uint8_t> code;
     boost::program_options::options_description _opt;
 };
-    
-
 #endif /* IP_HPP */
 

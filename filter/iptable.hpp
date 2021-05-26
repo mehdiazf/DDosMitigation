@@ -21,6 +21,10 @@ extern "C"{
 #include "monitor.hpp"
 #include "ip.hpp"
 #include "parser.hpp"
+
+/*
+ * a wrapper class around libiptc for ADD/DEL iptable rules based on token
+*/
 class Iptable{
 
 public:
@@ -66,9 +70,11 @@ private:
 
     struct xtc_handle * h;
     ipt_chainlabel chain;
+    //these pointers are used for L4 rule
     struct ipt_entry * en;
     struct ipt_entry_match * m;
     struct ipt_entry_target  target;
+    //structure for L3 rule
     struct Std_rule {
     	struct ipt_entry en;
     	struct xt_standard_target target;
@@ -76,9 +82,5 @@ private:
     Std_rule rl;     
     size_t m_size;
     boost::program_options::options_description _opt;
-
 };
-
-
-
 #endif

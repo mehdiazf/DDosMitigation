@@ -34,7 +34,6 @@ bool Bgp::match_string(std::string str, std::string known){
 	std::stringstream x(tmp); std::getline(x, tmp);
 	std::getline(x, tmp);
 	return tmp.compare(0, known.size(), known);
-
 }
 bool Bgp::status(){
 	return status(dst_addr);

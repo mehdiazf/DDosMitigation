@@ -30,12 +30,30 @@
 
 #define MAX_BUFF 65537
 
+/*
+ * structure for ring buffer of AF_PACKET socket
+ * contain pointer to a block of packets
+*/
 struct block_desc {
           uint32_t version;
           uint32_t offset_to_priv;
           struct tpacket_hdr_v1 h1;
  };
-
+/*
+ * class for AF_PACKET socket, which recieve and process packet 
+ * @param ifacename: interface name for incoming packet, which also uses
+ * for iptable blocking
+ * @param: thread_: refrence to thread_group, this will be used to spawn new thread alongise others as a group.
+ * @param: thread_anomaly: this will be used for each thread to process packet independently
+ * @param: anomaly: for getting rule to be proccessed
+ * @param: num_cpu_: number of cpu core for spawning multiple thread, this option currently intialize as 1, but
+ * it can be used for implementing multiple thread as to support cpu fanout options. 
+ * (this was not implemented becasue ring buffer gives us enough performance, and it seems better to replace AF_PACKET with something else. (pf_ring,...) )
+ * @param: _enable_ring: to enable ring buffer
+ * @param: rd_: vector of pointer to block of ring buffer, it will be used in ring buffer mode
+ * @param: block_nr: number of block of buffer in rinf buffer mode
+ *
+*/
 class AF_packet{
     
 public:

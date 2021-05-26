@@ -29,7 +29,6 @@ bool Iptable::remove_pre_chain(){
 		}
 	}
 	return stat1;
-
 }
 bool Iptable::remove_rule_chain(){
 
@@ -65,15 +64,15 @@ bool Iptable::remove_all(){
 	return (stat1 && stat2);
 
 }
-Iptable::Iptable(const std::string& inface, const std::string& id_, unsigned int prot_,
-	       	std::vector<std::string>& input):
-		stat1(true), stat2(true),
-		iface(inface),table("raw"),
-	 	id(id_), proto(prot_),
-		chn_name("ANOMALY__"), 
-		tcp_flgs(std::make_pair(0x0, 0x0)),
-	       	icmp_type(-1)
-		
+Iptable::Iptable(const std::string& inface, const std::string& id_, unsigned int prot_, std::vector<std::string>& input)
+	: stat1(true), stat2(true),
+	  iface(inface),
+	  table("raw"),
+	  id(id_),
+	  proto(prot_),
+	  chn_name("ANOMALY__"), 
+	  tcp_flgs(std::make_pair(0x0, 0x0)),
+	  icmp_type(-1)	
 {
 	add_options(input);
 	chn_name.append(id);
@@ -135,10 +134,9 @@ Iptable::Iptable(const std::string& inface, const std::string& id_, unsigned int
 		remove_all();
 		throw std::runtime_error("Couldn't initialize iptables entry.");
 	}
-	
-
 }
 void Iptable::add_options(std::vector<std::string> & in){
+	
 	namespace po = boost::program_options;
 	_opt.add_options()
 		("dstip,d", po::value<std::string>(), "destination ip address/net")
@@ -179,7 +177,6 @@ void Iptable::add_options(std::vector<std::string> & in){
 	if (vm.count("code")) {
 		icmp_code = parser::icmp_range(vm["code"].as<std::string>());
 	}
-
 }
 bool Iptable::add_chain(){
 
@@ -200,7 +197,6 @@ bool Iptable::add_chain(){
 	iptc_free(h);
 	stat2 = false;
 	return true;	
-		
 }
 bool Iptable::set_chain_rule(){
 
@@ -287,7 +283,6 @@ bool Iptable::insert_rule(bool match_rule){
 	}	
 	iptc_free(h);
 	return x;
-
 }
 void Iptable::clean_l3()
 {
@@ -300,7 +295,6 @@ void Iptable::clean_l3()
 	}else{
 		en->ip.src.s_addr = rl.en.ip.src.s_addr = 0;
                 en->ip.smsk.s_addr = rl.en.ip.smsk.s_addr = 0x0;
-	
 	}
 }
 void Iptable::clean_tcp(struct ipt_tcp * tcp_){
@@ -356,7 +350,6 @@ void Iptable::clean_icmp(struct ipt_icmp * icmp_){
 		icmp_->code[0] = 0;
 		icmp_->code[1] = 0xFF;
 	}
-
 }
 bool Iptable::set_tcp_field(token& t, struct ipt_tcp * tcp_){
 
@@ -385,7 +378,6 @@ bool Iptable::set_tcp_field(token& t, struct ipt_tcp * tcp_){
                 throw std::runtime_error("Couldn't insert rule.");
 	}
 	return false;
-
 }
 bool Iptable::set_udp_field(token& t, struct ipt_udp * udp_){
 
@@ -496,7 +488,6 @@ bool Iptable::add_rule(token &t)
 			memset(icmp_, 0, sizeof(struct ipt_icmp));
 			return set_icmp_field(t, icmp_);
                 }	
-
 
 	return false;
 }

@@ -37,6 +37,7 @@ bool Sqlite::SQLite::init_database = false;
 
 using namespace BGP;
 
+//watcher thread for recieving packets from sniffer threads
 void watcher(std::vector<std::shared_ptr<Anomaly>> & threads_collect,
         std::shared_ptr<Anomaly> anomly, std::shared_ptr<ts_queue<token>> task){
 
@@ -62,6 +63,7 @@ void watcher(std::vector<std::shared_ptr<Anomaly>> & threads_collect,
     }
     
 }
+//inform main about terminating
 bool end_process(std::shared_ptr<Client>& _client, const int id, const int byte, const int packet, const std::vector<std::string>& rule_list){
 
 	for(;;)
@@ -89,6 +91,7 @@ bool end_process(std::shared_ptr<Client>& _client, const int id, const int byte,
 	}
 	return false;
 }
+// task_runner thread for running trigger and apply iptables rules
 void task_runner(std::shared_ptr<ts_queue<token>> task, int id, int timeout,
 	       	uint8_t proto, uint32_t dst_addr, std::shared_ptr<Iptable>& ipt, std::shared_ptr<Client>& _client, std::shared_ptr<Bgp>& bgp){
 
@@ -164,7 +167,8 @@ int main(int argc, char ** argv){
         std::cerr<<"Invalid argument."<<std::endl;
         return 1;
     }
-
+    
+    //open fd and read the instruction
    __gnu_cxx::stdio_filebuf<char> f(std::atoi(argv[1]), std::ios::in);
     std::istream is(&f);
     std::string line;
@@ -180,6 +184,7 @@ int main(int argc, char ** argv){
     int bgpid, timeout, bgp_port, mainport;
     std::string interface, bgppass, enable_pass, bgp_ip, mainip;  
     std::srand(std::time(nullptr));
+    //get bgp and general config
     for(;;){
     	try{
 		Sqlite::SQLite sq("Taro_Config");
@@ -309,9 +314,6 @@ int main(int argc, char ** argv){
     threads.add_thread(new boost::thread(task_runner, task_list, id, timeout, proto_, rule->dst_addr,
 			    std::ref(iptable_), std::ref(_client), std::ref(bgp) ));
 
-
-    //signals.async_wait([&threads,&io_srv](const boost::system::error_code& e
-    //			    , int sn){threads.interrupt_all();io_srv.stop();});
     io_srv.run_one();
     threads.interrupt_all(); 
     threads.join_all();    

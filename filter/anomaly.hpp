@@ -8,7 +8,9 @@
 #include "monitor.hpp"
 #include "parser.hpp"
 #include "../lib/queue.hpp"
-
+/*
+ * class that containing rule for packet processing  
+*/
 class Anomaly{
     
 public:
@@ -25,15 +27,12 @@ public:
     void check_triggers(std::shared_ptr<ts_queue<token>> & l);
     void add_filter_rule(const std::string& str);
     
-    
 private:
     
     unsigned long int id;
     std::shared_ptr<IpRule>& rule_;
     Monitor monitor_;
     uint8_t proto_;
-    
-    
+     
 };
-
 #endif

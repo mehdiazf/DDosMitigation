@@ -2,15 +2,20 @@
 
 AF_packet::AF_packet(const std::string& ifname,boost::thread_group & grp,
             std::vector<std::shared_ptr<Anomaly>> & anom,
-        const Anomaly & anoml, uint8_t p ):proto(p),ifacename(ifname),
-        thread_(grp),thread_anomaly(anom),anomaly(anoml),num_cpu_(1),
-        _enable_ring(1),rd_(nullptr){}
+            const Anomaly & anoml, uint8_t p )
+	    :proto(p),
+	    ifacename(ifname),
+            thread_(grp),
+	    thread_anomaly(anom),
+	    anomaly(anoml),
+	    num_cpu_(1),
+            _enable_ring(1),
+	    rd_(nullptr){}
 
 AF_packet::~AF_packet(){
     
     if(_enable_ring)
         delete rd_;
-    
 }
 
 void AF_packet::start(){
@@ -117,7 +122,7 @@ void AF_packet::packet_thread(int fd, int thread_id, std::shared_ptr<Anomaly> an
                         return;  
                 }
                 //if(
-                    check_packet(buff, anom, read_len, proto); ////capture
+                    check_packet(buff, anom, read_len, proto); ////packet capture implementation (future)
             }
         }
         else

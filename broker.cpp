@@ -50,6 +50,7 @@ std::string get_time();
  * ? void update_db(int, char*)
  * ...
  */
+//defining database initialization
 bool Sqlite::SQLite::conf = true;
 bool Sqlite::SQLite::init_database = true ;
 
@@ -85,8 +86,8 @@ main(int argc, char **argv)
 		return 1;
 	}
 	/* daemonise */
-//	if(!dflag)
-//		daemon(1, 0);
+	if(!dflag)
+		daemon(1, 0);
 	
 	setvbuf(stdout, NULL, _IONBF, 0);
 
@@ -315,7 +316,7 @@ read_cb(struct bufferevent *bev, void *ctx)
 		if((prule = not_in_db(rules)) != "" ){
 			if (fork() == 0) {
 				if(fork() == 0 ){
-					//daemon(1,0);
+					daemon(1,0);
 					
 					int fd = open("/tmp",  O_EXCL | O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
 					if(fd<0){

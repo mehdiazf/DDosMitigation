@@ -7,15 +7,17 @@
 
 #include<boost/asio/ip/address_v4.hpp>
 
-
 #include "client.hpp"
 
 namespace BGP{
-
+/*
+ * define static text for ADD/REMOVE advertising
+*/
 enum class Step : int {enable=0, configure=1, rtr=2, add=3 ,status=4};
-const std::vector<std::string> cmd_  = { "enable\r\n", "conf t\r\n",
-       	"router bgp ", "network ", "show ip bgp " };
-
+const std::vector<std::string> cmd_  = { "enable\r\n", "conf t\r\n", "router bgp ", "network ", "show ip bgp " };
+/*
+ * class that is responsible for talking to bgpd process
+*/
 class Bgp: public Client{
 
 public:

@@ -8,8 +8,6 @@
 #include <chrono>
 #include <iostream>
 
-
-
 template<typename T>
 class ts_queue
 {

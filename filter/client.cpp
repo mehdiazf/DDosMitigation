@@ -1,14 +1,13 @@
 #include "client.hpp"
 
-Client::Client(boost::asio::io_context& io_context_, const std::string& ip, unsigned short port_):
-	socket_(io_context_),ep(boost::asio::ip::address::from_string(ip), port_),
+Client::Client(boost::asio::io_context& io_context_, const std::string& ip, unsigned short port_)
+	:socket_(io_context_),
+	ep(boost::asio::ip::address::from_string(ip),port_),
 	port(port_){}
 //Client::~Client(){
 //	close();
 //}
-	
 bool Client::connect(){
-
 
 	try{
 		socket_.connect(ep);
@@ -18,7 +17,6 @@ bool Client::connect(){
 	}
 	return true;
 }
-
 void Client::close(){
 
 	boost::system::error_code ec;
@@ -27,7 +25,6 @@ void Client::close(){
 		throw std::runtime_error(ec.message());
 	}
 }
-
 bool Client::send(const std::string& str){
 
 	boost::system::error_code err;

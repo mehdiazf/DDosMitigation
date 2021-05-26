@@ -167,7 +167,7 @@ namespace parser
         num /= (its_byte ? 8 : 1); // convert bit to bytes
         return num;
     }
-	std::pair<uint8_t, uint8_t> icmp_range(std::string str)
+    std::pair<uint8_t, uint8_t> icmp_range(std::string str)
     {
 
 	    std::pair<uint8_t, unsigned short int> tmp = parser::numcomp_from_string<uint8_t>(str);
@@ -177,10 +177,7 @@ namespace parser
 			return std::make_pair<uint8_t, uint8_t>(static_cast<uint8_t>(tmp.first), static_cast<uint8_t>(0xFF));
 		else
 			return std::make_pair<uint8_t, uint8_t>(static_cast<uint8_t>(0x00), static_cast<uint8_t>(tmp.first));
-
-
    }
-
 
 }
    
