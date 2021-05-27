@@ -26,8 +26,5 @@ The formats are discussed as bellow.
  
  This will enable src_ip filter for specific ip and port range, for reset flag, if packets reaches above 7 packet per second limit.
 
-<<<<<<< HEAD
-ICMP -d 192.168.1.1/32 --bps-th <...> --pps-th-period --type 8>  --filter src_ip:1,icmp_type:1
-=======
 ICMP -d 192.168.1.1/32 --bps-th 10Mb --pps-th-period --type 8>  --filter src_ip:1,icmp_type:1
->>>>>>> 7aca01cf4f97204c62a810708f4a4ba4825c5ce8
+
